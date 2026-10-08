@@ -1,3 +1,11 @@
+# 내 도구 모음
+
+## 주소 모음
+- 응모 수첩: https://bae4021.github.io/eungmo/
+- 연차관리대장: https://bae4021.github.io/eungmo/leave/
+- Firebase 콘솔 (로그인·데이터·보안 규칙): https://console.firebase.google.com/project/eungmo
+- 두 페이지 맨 위의 메뉴로 서로 오갈 수 있어요.
+
 # 응모 수첩
 
 출석체크, 이벤트 응모, 해지 기한을 관리하는 개인 수첩이에요.

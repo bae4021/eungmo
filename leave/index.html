@@ -30,6 +30,11 @@
   *{box-sizing:border-box;}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);}
   .app{max-width:1180px;margin:0 auto;padding:28px 24px 80px;}
+  .tool-nav{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;}
+  .tool-nav a{font-size:12px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:6px 13px;border-radius:999px;border:1px solid var(--line-strong);}
+  .tool-nav a:hover{color:var(--ink);background:var(--paper-2);}
+  .tool-nav a[aria-current="page"]{color:var(--paper);background:var(--ink);border-color:var(--ink);}
+  .tool-nav a:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
 
   /* ---------- Header ---------- */
   .masthead{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:3px double var(--line-strong);padding-bottom:14px;margin-bottom:22px;flex-wrap:wrap;gap:14px;}
@@ -203,6 +208,7 @@
 </head>
 <body>
 <div class="app">
+  <nav class="tool-nav" aria-label="도구 전환"><a href="../">응모 수첩</a><a href="./" aria-current="page">연차관리대장</a></nav>
   <div class="masthead">
     <div>
       <h1>연차관리대장</h1>
