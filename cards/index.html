@@ -116,6 +116,17 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .face .grade{font-size:10.5px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;opacity:0.85;text-align:right;}
 .face .chipimg{width:34px;height:25px;border-radius:5px;background:linear-gradient(135deg,#E9D49A,#B8964F);box-shadow:inset 0 0 0 1px rgba(0,0,0,0.15);position:relative;z-index:1;}
 .face .name{font-size:16px;font-weight:800;line-height:1.3;overflow-wrap:anywhere;}
+.face.photo{padding:0;background:var(--surface-2);box-shadow:0 1px 4px rgba(0,0,0,0.14);}
+.face.photo::after{display:none;}
+.face.photo img{width:100%;height:100%;object-fit:cover;display:block;}
+.ctitle b{display:block;font-size:15px;line-height:1.35;overflow-wrap:anywhere;}
+.ctitle span{font-size:12px;color:var(--ink-soft);}
+.img-pick{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.img-prev{width:170px;aspect-ratio:1.586/1;border-radius:10px;border:1px dashed var(--line-strong);background:var(--surface-2) center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-soft);flex-shrink:0;}
+.img-prev.has{border-style:solid;border-color:var(--line);}
+.img-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.img-err{font-size:12px;color:var(--err);}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;}
 .face .net{font-size:14px;font-weight:800;font-style:italic;letter-spacing:0.02em;white-space:nowrap;opacity:0.95;}
 .body{padding:12px 16px 14px;display:flex;flex-direction:column;gap:10px;flex:1;}
 .kv{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border-radius:8px;overflow:hidden;}
@@ -123,6 +134,22 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .kv .k{font-size:10.5px;color:var(--ink-soft);}
 .kv .v{font-family:var(--mono);font-size:14px;font-weight:600;margin-top:1px;font-variant-numeric:tabular-nums;}
 .tags{display:flex;flex-wrap:wrap;gap:5px;}
+.tier-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.tier-tbl th{font-size:10.5px;font-weight:700;color:var(--ink-soft);text-align:left;padding:0 0 4px;border-bottom:1px solid var(--line);}
+.tier-tbl th:last-child,.tier-tbl td:last-child{text-align:right;}
+.tier-tbl td{padding:5px 0;border-bottom:1px dashed var(--line);font-variant-numeric:tabular-nums;vertical-align:top;}
+.tier-tbl tr:last-child td{border-bottom:0;}
+.tier-tbl .amt{font-family:var(--mono);font-weight:600;}
+.tier-tbl .tnote{display:block;font-size:11px;color:var(--ink-soft);font-family:'Noto Sans KR',sans-serif;font-weight:400;}
+.tiers-edit{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;}
+.tiers-edit:empty{display:none;}
+.tier-row{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;gap:8px;align-items:center;}
+.tin{display:flex;align-items:center;gap:6px;min-width:0;}
+.tin input{flex:1;min-width:0;}
+.tin span{font-size:12px;color:var(--ink-soft);white-space:nowrap;}
+.t-del{border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;width:38px;height:38px;cursor:pointer;color:var(--ink-soft);}
+.t-del:hover{color:var(--err);}
+.btn.small{padding:6px 12px;font-size:13px;align-self:flex-start;}
 .tag{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(31,59,115,0.08);color:var(--accent);}
 .benefits{margin:0;padding-left:16px;font-size:13px;line-height:1.6;}
 .benefits li{overflow-wrap:anywhere;}
@@ -142,6 +169,7 @@ table.tbl{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
 .tbl th.num{text-align:right;}
 .tbl tr:hover td{background:var(--surface-2);}
 .tbl .cname{display:flex;align-items:center;gap:8px;font-weight:700;}
+.tbl .thumb{width:38px;height:24px;object-fit:cover;border-radius:4px;flex-shrink:0;box-shadow:0 0 0 1px var(--line);}
 .tbl .dotc{width:14px;height:10px;border-radius:2px;flex-shrink:0;}
 .tbl .pre{white-space:pre-wrap;max-width:280px;}
 .tbl .edit{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px;}
@@ -173,6 +201,8 @@ table.tbl{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
   .seg{order:2;margin-left:auto;}
   .toolbar .grow{order:3;flex-basis:100%;}
   .toolbar select{order:4;flex:1 1 0;min-width:0;padding:0 6px;font-size:13px;}
+  .tier-row{grid-template-columns:1fr 1fr auto;}
+  .tier-row .t-note{grid-column:1/3;}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
@@ -190,7 +220,6 @@ table.tbl{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
     <div class="stats" id="stats" hidden>
       <div class="stat"><div class="k">카드</div><div class="v" id="stCount">0<small>장</small></div></div>
       <div class="stat"><div class="k">연회비 합계</div><div class="v" id="stFee">0</div></div>
-      <div class="stat"><div class="k">전월 실적 합계</div><div class="v" id="stSpend">0</div></div>
     </div>
   </header>
 
@@ -233,7 +262,12 @@ table.tbl{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
         <div class="field"><label for="iNet">결제망</label><input id="iNet" list="dlNet" maxlength="20" placeholder="예: VISA"></div>
         <div class="field"><label for="iGrade">카드 등급</label><input id="iGrade" list="dlGrade" maxlength="20" placeholder="예: Platinum"></div>
         <div class="field"><label for="iFee">연회비 (원)</label><input id="iFee" inputmode="numeric" placeholder="예: 15,000 · 없으면 0"></div>
-        <div class="field"><label for="iSpend">전월 실적 (원)</label><input id="iSpend" inputmode="numeric" placeholder="예: 300,000 · 없으면 0"></div>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <span class="label">전월 실적별 혜택 한도</span>
+        <div class="tiers-edit" id="tierRows"></div>
+        <button type="button" class="btn small" id="addTierBtn">+ 실적 단계 추가</button>
+        <span class="hint">예: 30만원 이상 → 한도 1만원, 50만원 이상 → 한도 2만원. 실적 조건이 없는 카드는 실적에 0을 넣고, 한도가 없으면 비워두세요.</span>
       </div>
       <div class="field" style="margin-bottom:12px;">
         <span class="label">혜택 분야 (여러 개 고를 수 있어요)</span>
@@ -245,7 +279,21 @@ table.tbl{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
           <span class="hint">카드 번호·CVC·비밀번호는 적지 마세요.</span></div>
       </div>
       <div class="field" style="margin-bottom:14px;">
-        <span class="label">카드 색</span>
+        <span class="label">카드 이미지 (선택)</span>
+        <div class="img-pick">
+          <div class="img-prev" id="imgPrev">이미지 없음</div>
+          <div class="img-btns">
+            <button type="button" class="btn small" id="imgPickBtn">사진 선택</button>
+            <button type="button" class="btn small" id="imgRotate" hidden>↻ 돌리기</button>
+            <button type="button" class="btn small ghost" id="imgRemove" hidden>이미지 빼기</button>
+            <input type="file" id="iImage" accept="image/*" class="sr-only" tabindex="-1" aria-label="카드 이미지 파일">
+          </div>
+        </div>
+        <span class="img-err" id="imgErr" aria-live="polite"></span>
+        <span class="hint">카드사 홈페이지·앱의 카드 디자인 이미지를 쓰세요. 실물 카드 사진은 카드 번호가 보여서 넣지 마세요. 세로 카드는 자동으로 눕혀요.</span>
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <span class="label">카드 색 (이미지가 없을 때)</span>
         <div class="swatches" id="swatches"></div>
       </div>
       <div class="form-actions">
@@ -289,7 +337,7 @@ const $ = id => document.getElementById(id);
 const ISSUERS = ['신한','삼성','현대','KB국민','롯데','하나','우리','BC','NH농협','IBK기업','씨티','카카오뱅크','토스뱅크','SC제일','수협','광주','전북','제주','우체국'];
 const NETWORKS = ['VISA','Mastercard','JCB','AMEX','UnionPay','국내전용'];
 const GRADES = ['일반','Gold','Platinum','Signature','World','World Elite','Infinite','Ultimate','Black','Diamond'];
-const TAGS = ['쇼핑','온라인','주유','교통','통신','카페','외식','편의점','마트','해외','항공·마일리지','포인트·캐시백','공과금','구독'];
+const TAGS = ['쇼핑','온라인','주유','택시','통신','카페','외식','편의점','마트','해외','면세점','항공','마일리지','포인트·캐시백','공과금','구독'];
 const COLORS = [['#1F2A44','남색'],['#1B1B1F','검정'],['#7E858F','실버'],['#A9874F','골드'],['#B23A2E','빨강'],['#1E6F5C','초록'],['#2F5DA8','파랑'],['#5B4B8A','보라'],['#C2577A','분홍']];
 
 /* ---------- 작은 도구 ---------- */
@@ -319,6 +367,25 @@ function colorOf(c){
   const s=String(c.issuer||c.name||''); let h=0; for(const ch of s) h=(h*31+ch.charCodeAt(0))>>>0;
   return COLORS[h%COLORS.length][0];
 }
+// 전월 실적 단계: [{min:실적(원), limit:혜택 한도(원), note:메모}] — 예전 카드는 prevSpend 하나를 첫 단계로 봐요
+function tiersOf(c){
+  if(Array.isArray(c.tiers) && c.tiers.length) return [...c.tiers].sort((a,b)=>(a.min||0)-(b.min||0));
+  if(c.prevSpend!=null) return [{min:c.prevSpend, limit:null, note:''}];
+  return [];
+}
+function minLabel(n){ return Number(n) ? `${won(n)} 이상` : '조건 없음'; }
+function spendShort(c){
+  const t=tiersOf(c); if(!t.length) return '—';
+  return t.length>1 ? `${won(t[0].min)}~` : won(t[0].min);
+}
+function tierText(t){ return `${minLabel(t.min)} → 한도 ${t.limit!=null?won(t.limit):'—'}${t.note?` (${t.note})`:''}`; }
+// 예전 '항공·마일리지'는 '항공'과 '마일리지' 두 개로 나눠요
+function normTags(tags){
+  const out=[]; (Array.isArray(tags)?tags:[]).forEach(t=>{ (t==='항공·마일리지' ? ['항공','마일리지'] : [t]).forEach(x=>{ if(x && !out.includes(x)) out.push(x); }); });
+  return out;
+}
+// 카드 이미지는 이 페이지가 만든 data:image 주소만 써요
+function safeImg(u){ return (typeof u==='string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(u)) ? u : ''; }
 function benefitLines(c){ return String(c.benefits||'').split('\n').map(x=>x.trim()).filter(Boolean); }
 
 /* ---------- 상태 ---------- */
@@ -401,7 +468,7 @@ function startStore(){
     setSync('loading');
     colRef = fb.collection(fb.db,'users',user.uid,'cards');
     unsub = fb.onSnapshot(colRef, {includeMetadataChanges:true}, snap=>{
-      cards = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      cards = snap.docs.map(d=>{ const c={id:d.id, ...d.data()}; c.tags=normTags(c.tags); return c; });
       if(!loaded){ loaded=true; showApp(true); }
       stickyError=null;
       watchPending(snap.metadata.hasPendingWrites);
@@ -432,7 +499,7 @@ function removeCard(id){
 }
 
 /* ---------- 거르기·정렬 ---------- */
-function haystack(c){ return [c.name,c.issuer,c.grade,normNet(c.network),c.benefits,c.memo,(c.tags||[]).join(' ')].join(' ').toLowerCase(); }
+function haystack(c){ return [c.name,c.issuer,c.grade,normNet(c.network),c.benefits,c.memo,(c.tags||[]).join(' '),tiersOf(c).map(t=>t.note||'').join(' ')].join(' ').toLowerCase(); }
 function visibleCards(){
   const q=filt.q.trim().toLowerCase();
   let list=(cards||[]).filter(c=>
@@ -459,9 +526,8 @@ function render(){
   if(!cards) return;
   // 합계
   $('stCount').innerHTML = `${cards.length}<small>장</small>`;
-  const fee=cards.reduce((s,c)=>s+(Number(c.annualFee)||0),0), spend=cards.reduce((s,c)=>s+(Number(c.prevSpend)||0),0);
+  const fee=cards.reduce((s,c)=>s+(Number(c.annualFee)||0),0);
   $('stFee').innerHTML = fee ? `${esc(won(fee))}<small>/년</small>` : '0';
-  $('stSpend').innerHTML = spend ? `${esc(won(spend))}<small>/월</small>` : '0';
 
   // 고르기 목록 (실제로 있는 값만)
   const issuers=orderBy(countBy(c=>c.issuer).keys(), ISSUERS), grades=orderBy(countBy(c=>c.grade).keys(), GRADES);
@@ -494,15 +560,18 @@ function render(){
 
 function tileHtml(c){
   const lines=benefitLines(c), open=openTiles.has(c.id), shown=open?lines:lines.slice(0,3);
-  const net=normNet(c.network);
+  const net=normNet(c.network), img=safeImg(c.image);
+  const sub=[c.issuer,c.grade,net].filter(Boolean).join(' · ');
   return `<article class="tile">
-    <div class="face" style="--c:${esc(colorOf(c))}">
+    ${img ? `<div class="face photo"><img src="${img}" alt="${esc(c.name||'')} 카드 이미지" loading="lazy"></div>` : `<div class="face" style="--c:${esc(colorOf(c))}">
       <div class="row"><span class="issuer">${esc(c.issuer||'')}</span><span class="grade">${esc(c.grade||'')}</span></div>
       <div class="chipimg" aria-hidden="true"></div>
       <div class="row" style="align-items:flex-end;"><span class="name">${esc(c.name||'')}</span>${net?`<span class="net">${esc(net)}</span>`:''}</div>
-    </div>
+    </div>`}
     <div class="body">
-      <div class="kv"><div><div class="k">연회비</div><div class="v">${esc(won(c.annualFee))}</div></div><div><div class="k">전월 실적</div><div class="v">${esc(won(c.prevSpend))}</div></div></div>
+      ${img ? `<div class="ctitle"><b>${esc(c.name||'')}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>` : ''}
+      <div class="kv"><div><div class="k">연회비</div><div class="v">${esc(won(c.annualFee))}</div></div><div><div class="k">전월 실적</div><div class="v">${esc(spendShort(c))}</div></div></div>
+      ${tierTableHtml(c)}
       ${(c.tags||[]).length?`<div class="tags">${c.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
       ${shown.length?`<ul class="benefits">${shown.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
       ${lines.length>3?`<button type="button" class="more" data-more="${esc(c.id)}">${open?'접기':`혜택 ${lines.length-3}개 더 보기`}</button>`:''}
@@ -510,6 +579,12 @@ function tileHtml(c){
       <div class="tile-foot"><button type="button" class="btn" data-edit="${esc(c.id)}">수정</button></div>
     </div>
   </article>`;
+}
+function tierTableHtml(c){
+  const t=tiersOf(c);
+  if(!t.length || (t.length===1 && t[0].limit==null && !t[0].note)) return '';
+  return `<table class="tier-tbl"><thead><tr><th>전월 실적</th><th>혜택 한도</th></tr></thead><tbody>${t.map(x=>
+    `<tr><td>${esc(minLabel(x.min))}</td><td><span class="amt">${x.limit!=null?esc(won(x.limit)):'—'}</span>${x.note?`<span class="tnote">${esc(x.note)}</span>`:''}</td></tr>`).join('')}</tbody></table>`;
 }
 function tableHtml(list){
   const th=(label,key,cls='')=>{
@@ -521,11 +596,11 @@ function tableHtml(list){
     return `<th class="${cls}"><button type="button" data-sort="${next}" ${on?'aria-sort="'+(arrow.includes('↓')?'descending':'ascending')+'"':''}>${label}${arrow}</button></th>`;
   };
   return `<div class="table-wrap"><table class="tbl"><thead><tr>
-    ${th('카드','name')}${th('카드사','issuer')}${th('결제망')}${th('등급')}${th('연회비','fee','num')}${th('전월 실적','spend','num')}${th('혜택 분야')}${th('혜택')}${th('비고')}<th></th>
+    ${th('카드','name')}${th('카드사','issuer')}${th('결제망')}${th('등급')}${th('연회비','fee','num')}${th('전월 실적 · 혜택 한도','spend')}${th('혜택 분야')}${th('혜택')}${th('비고')}<th></th>
   </tr></thead><tbody>${list.map(c=>`<tr>
-    <td><div class="cname"><span class="dotc" style="background:${esc(colorOf(c))}"></span>${esc(c.name||'')}</div></td>
+    <td><div class="cname">${safeImg(c.image) ? `<img class="thumb" src="${safeImg(c.image)}" alt="">` : `<span class="dotc" style="background:${esc(colorOf(c))}"></span>`}${esc(c.name||'')}</div></td>
     <td>${esc(c.issuer||'')}</td><td>${esc(normNet(c.network))}</td><td>${esc(c.grade||'')}</td>
-    <td class="num">${esc(won(c.annualFee))}</td><td class="num">${esc(won(c.prevSpend))}</td>
+    <td class="num">${esc(won(c.annualFee))}</td><td class="pre">${esc(tiersOf(c).map(tierText).join('\n')||'—')}</td>
     <td>${(c.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join(' ')}</td>
     <td class="pre">${esc(benefitLines(c).join('\n'))}</td><td class="pre">${esc(c.memo||'')}</td>
     <td><button type="button" class="edit" data-edit="${esc(c.id)}">수정</button></td>
@@ -534,6 +609,59 @@ function tableHtml(list){
 
 /* ---------- 입력 ---------- */
 let formTags=new Set(), formColor='';
+// 카드 이미지: 고른 사진을 이 기기에서 가로 640px 이하로 줄여서 카드 정보와 함께 저장해요
+let formImage='', imgSource=null, imgTurns=0, imgObjUrl=null;
+const IMG_MAX_W = 640, IMG_MAX_CHARS = 600000;
+function loadImg(src){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=src; }); }
+function encodeCard(im, turns){
+  const rot=((turns%4)+4)%4, sw=im.naturalWidth, sh=im.naturalHeight;
+  const ow = rot%2 ? sh : sw, oh = rot%2 ? sw : sh;
+  const k=Math.min(1, IMG_MAX_W/ow), w=Math.max(1,Math.round(ow*k)), h=Math.max(1,Math.round(oh*k));
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const g=cv.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,w,h);
+  g.translate(w/2,h/2); g.rotate(rot*Math.PI/2); g.drawImage(im, -sw*k/2, -sh*k/2, sw*k, sh*k);
+  let type='image/webp', url=cv.toDataURL(type, 0.82);
+  if(!url.startsWith('data:image/webp')){ type='image/jpeg'; url=cv.toDataURL(type, 0.82); }
+  for(let q=0.7; url.length>IMG_MAX_CHARS && q>0.3; q-=0.1) url=cv.toDataURL(type, q);
+  return url;
+}
+function drawImgPrev(){
+  const el=$('imgPrev');
+  el.style.backgroundImage = formImage ? `url("${formImage}")` : '';
+  el.classList.toggle('has', !!formImage);
+  el.textContent = formImage ? '' : '이미지 없음';
+  $('imgRotate').hidden = !formImage; $('imgRemove').hidden = !formImage;
+  $('imgPickBtn').textContent = formImage ? '다른 사진' : '사진 선택';
+}
+function resetImg(c){
+  formImage = safeImg(c && c.image); imgSource=null; imgTurns=0; $('imgErr').textContent=''; $('iImage').value='';
+  if(imgObjUrl){ URL.revokeObjectURL(imgObjUrl); imgObjUrl=null; }
+  drawImgPrev();
+}
+$('imgPickBtn').addEventListener('click', ()=>$('iImage').click());
+$('iImage').addEventListener('change', async ev=>{
+  const f=ev.target.files && ev.target.files[0]; if(!f) return;
+  $('imgErr').textContent='';
+  if(!f.type.startsWith('image/')){ $('imgErr').textContent='이미지 파일만 넣을 수 있어요.'; return; }
+  try{
+    if(imgObjUrl) URL.revokeObjectURL(imgObjUrl);
+    imgObjUrl=URL.createObjectURL(f);
+    const im=await loadImg(imgObjUrl);
+    imgSource=im; imgTurns = im.naturalHeight > im.naturalWidth*1.1 ? 3 : 0;   // 세로 카드는 왼쪽으로 눕혀요
+    formImage=encodeCard(im, imgTurns);
+    if(formImage.length>IMG_MAX_CHARS*1.5){ formImage=''; $('imgErr').textContent='이미지가 너무 커요. 다른 이미지를 골라주세요.'; }
+    drawImgPrev();
+  }catch(e){ console.error(e); $('imgErr').textContent='이 파일은 열 수 없어요. PNG·JPG 이미지를 골라주세요.'; }
+  finally{ ev.target.value=''; }
+});
+$('imgRotate').addEventListener('click', async ()=>{
+  if(!formImage) return;
+  try{
+    if(!imgSource){ imgSource=await loadImg(formImage); imgTurns=0; }
+    imgTurns=(imgTurns+1)%4; formImage=encodeCard(imgSource, imgTurns); drawImgPrev();
+  }catch(e){ console.error(e); }
+});
+$('imgRemove').addEventListener('click', ()=>{ formImage=''; imgSource=null; imgTurns=0; drawImgPrev(); });
 function drawTagPick(){
   const extra=[...formTags].filter(t=>!TAGS.includes(t));
   $('tagPick').innerHTML=[...TAGS,...extra].map(t=>`<button type="button" class="chip" data-tag="${esc(t)}" aria-pressed="${formTags.has(t)}">${esc(t)}</button>`).join('');
@@ -541,15 +669,36 @@ function drawTagPick(){
 function drawSwatches(){
   $('swatches').innerHTML=COLORS.map(([c,n])=>`<button type="button" class="swatch" data-color="${c}" style="background:${c}" aria-label="${n}" title="${n}" aria-pressed="${formColor===c}"></button>`).join('');
 }
+function tierRowHtml(t){
+  t=t||{};
+  return `<div class="tier-row">
+    <div class="tin"><input class="t-min" inputmode="numeric" placeholder="실적 예: 300,000" value="${t.min!=null?commas(t.min):''}" aria-label="전월 실적 (원)"><span>원 이상</span></div>
+    <div class="tin"><input class="t-limit" inputmode="numeric" placeholder="한도 예: 10,000" value="${t.limit!=null?commas(t.limit):''}" aria-label="혜택 한도 (원)"><span>원 한도</span></div>
+    <input class="t-note" maxlength="30" placeholder="메모 (선택) 예: 통합 할인" value="${esc(t.note||'')}" aria-label="메모">
+    <button type="button" class="t-del" aria-label="이 단계 삭제" title="이 단계 삭제">✕</button>
+  </div>`;
+}
+function drawTierRows(list){ $('tierRows').innerHTML = (list||[]).map(tierRowHtml).join(''); }
+function readTiers(){
+  const out=[];
+  for(const row of $('tierRows').querySelectorAll('.tier-row')){
+    const min=num(row.querySelector('.t-min').value), limit=num(row.querySelector('.t-limit').value), note=row.querySelector('.t-note').value.trim();
+    if(min==null && limit==null && !note) continue;          // 빈 줄은 무시
+    if(min==null) return {error: row.querySelector('.t-min')}; // 한도만 있고 실적이 없으면 다시 입력
+    out.push({min, limit, note});
+  }
+  out.sort((a,b)=>a.min-b.min);
+  return {tiers: out};
+}
 function openForm(c){
   editingId = c ? c.id : null;
   $('formTitle').textContent = c ? '카드 수정' : '카드 추가';
   $('saveBtn').textContent = c ? '수정 저장' : '추가하기';
   $('delBtn').hidden = !c; resetDel();
   $('iName').value=c?.name||''; $('iIssuer').value=c?.issuer||''; $('iNet').value=c?normNet(c.network):''; $('iGrade').value=c?.grade||'';
-  $('iFee').value=c&&c.annualFee!=null?commas(c.annualFee):''; $('iSpend').value=c&&c.prevSpend!=null?commas(c.prevSpend):'';
+  $('iFee').value=c&&c.annualFee!=null?commas(c.annualFee):''; drawTierRows(c ? tiersOf(c) : []);
   $('iBenefits').value=c?.benefits||''; $('iMemo').value=c?.memo||'';
-  formTags=new Set(c?.tags||[]); formColor=c?.color||'';
+  formTags=new Set(normTags(c?.tags)); formColor=c?.color||''; resetImg(c);
   drawTagPick(); drawSwatches();
   $('form').hidden=false; $('addBtn').hidden=true;
   $('form').scrollIntoView({behavior:'smooth', block:'start'});
@@ -563,13 +712,16 @@ $('form').addEventListener('submit', ev=>{
   ev.preventDefault();
   const name=$('iName').value.trim();
   if(!name){ $('iName').focus(); return; }
+  const tr=readTiers();
+  if(tr.error){ tr.error.focus(); tr.error.placeholder='실적을 입력해주세요'; return; }
   const old = editingId ? (cards||[]).find(x=>x.id===editingId) : null;
   const c={
     id: old ? old.id : uid(),
     name, issuer:$('iIssuer').value.trim(), network:normNet($('iNet').value), grade:$('iGrade').value.trim(),
-    annualFee:num($('iFee').value), prevSpend:num($('iSpend').value),
+    annualFee:num($('iFee').value), tiers:tr.tiers, prevSpend:tr.tiers.length ? tr.tiers[0].min : null,
     tags:[...formTags], benefits:$('iBenefits').value.replace(/\s+$/,''), memo:$('iMemo').value.trim(),
     color: formColor || (old&&old.color) || '',
+    image: formImage || '',
     createdAt: old ? (old.createdAt||Date.now()) : Date.now(), updatedAt: Date.now(),
   };
   closeForm();
@@ -587,7 +739,10 @@ $('delBtn').addEventListener('click', ()=>{
 });
 $('cancelBtn').addEventListener('click', closeForm);
 $('addBtn').addEventListener('click', ()=>openForm(null));
-['iFee','iSpend'].forEach(id=>$(id).addEventListener('input', ev=>{ const n=num(ev.target.value); ev.target.value = n==null ? '' : commas(n); }));
+$('iFee').addEventListener('input', ev=>{ const n=num(ev.target.value); ev.target.value = n==null ? '' : commas(n); });
+$('tierRows').addEventListener('input', ev=>{ if(!ev.target.matches('.t-min,.t-limit')) return; const n=num(ev.target.value); ev.target.value = n==null ? '' : commas(n); });
+$('tierRows').addEventListener('click', ev=>{ const b=ev.target.closest('.t-del'); if(b) b.closest('.tier-row').remove(); });
+$('addTierBtn').addEventListener('click', ()=>{ $('tierRows').insertAdjacentHTML('beforeend', tierRowHtml()); const rows=$('tierRows').querySelectorAll('.t-min'); rows[rows.length-1].focus(); });
 $('tagPick').addEventListener('click', ev=>{ const b=ev.target.closest('[data-tag]'); if(!b) return; const t=b.dataset.tag; formTags.has(t)?formTags.delete(t):formTags.add(t); b.setAttribute('aria-pressed', String(formTags.has(t))); });
 $('swatches').addEventListener('click', ev=>{ const b=ev.target.closest('[data-color]'); if(!b) return; formColor = formColor===b.dataset.color ? '' : b.dataset.color; drawSwatches(); });
 
