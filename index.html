@@ -198,6 +198,12 @@ a.entry-title::after{content:" ↗";font-size:11px;color:var(--ink-soft);}
 .icon-btn:hover{background:rgba(31,42,60,0.06);color:var(--ink);}
 .icon-btn.go{background:var(--stamp-teal);border-color:var(--stamp-teal);color:#fff;}
 .icon-btn.go:hover{filter:brightness(1.1);}
+.action-pick{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.pick{border:1px solid var(--line);background:var(--cell-empty);border-radius:999px;padding:7px 14px;font-family:inherit;font-size:13px;color:var(--ink-soft);cursor:pointer;}
+.pick:hover{color:var(--ink);background:rgba(31,42,60,0.05);}
+.pick[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:var(--paper-hi);}
+.pick:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+.field .action-pick input{flex:1;min-width:150px;width:auto;}
 .icon-btn.undo{color:var(--stamp-teal);border-color:rgba(30,127,114,0.45);}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;
   display:flex;align-items:center;gap:12px;max-width:calc(100vw - 32px);
@@ -277,11 +283,11 @@ a.entry-title::after{content:" ↗";font-size:11px;color:var(--ink-soft);}
   <div class="cover-header">
     <div class="cover-eyebrow">PASSBOOK · No.001</div>
     <div class="cover-title">응모 수첩</div>
-    <div class="cover-sub">출석체크, 이벤트 응모, 해지 기한을 한 장부에서 관리해요</div>
+    <div class="cover-sub">출석체크, 이벤트 응모, 해지·인출 같은 할 일을 한 장부에서 관리해요</div>
   </div>
   <div class="stats">
     <div class="stat"><div class="stat-num red" id="statToday">0</div><div class="stat-label">오늘 처리할 항목</div></div>
-    <div class="stat"><div class="stat-num teal" id="statSoon">0</div><div class="stat-label">3일 내 마감/해지</div></div>
+    <div class="stat"><div class="stat-num teal" id="statSoon">0</div><div class="stat-label">3일 내 마감/처리</div></div>
     <div class="stat"><div class="stat-num" id="statTotal">0</div><div class="stat-label">전체 관리 중</div></div>
     <button type="button" class="stat stat-btn" id="profitBtn" aria-expanded="false" aria-controls="profitPanel">
       <div class="stat-num teal"><span id="statProfit">0</span><small>원</small></div>
@@ -317,10 +323,21 @@ a.entry-title::after{content:" ↗";font-size:11px;color:var(--ink-soft);}
           <select id="fType">
             <option value="daily">매일 출석 / 응모</option>
             <option value="monthly">매월 응모 (달에 한 번)</option>
-            <option value="cancel">가입 후 해지 필요</option>
+            <option value="cancel">처리 필요 (해지·체크·인출 등)</option>
           </select>
         </div>
         <div class="field"><label for="fPrize">상품 (선택)</label><input type="text" id="fPrize" placeholder="예: 스타벅스 쿠폰, 추첨 100명"></div>
+      </div>
+      <div class="form-row full" id="actionRow" hidden>
+        <div class="field">
+          <label for="fAction">할 일</label>
+          <div class="action-pick">
+            <button type="button" class="pick" data-pick="해지" aria-pressed="false">해지</button>
+            <button type="button" class="pick" data-pick="체크" aria-pressed="false">체크</button>
+            <button type="button" class="pick" data-pick="인출" aria-pressed="false">인출</button>
+            <input type="text" id="fAction" maxlength="8" autocomplete="off" placeholder="직접 입력 (예: 수령 확인)">
+          </div>
+        </div>
       </div>
       <div class="form-row">
         <div class="field">
@@ -395,10 +412,11 @@ const WK = ['일','월','화','수','목','금','토'];
 const pad2 = n => String(n).padStart(2,'0');
 const expanded = new Set(); // 날짜 칸을 펼친 카드
 let editingId = null;       // 수정 중인 항목
-const FILTERS = [['all','전체'],['daily','매일 출석'],['monthly','매월 응모'],['cancel','해지 필요']];
+const FILTERS_BASE = [['all','전체'],['daily','매일 출석'],['monthly','매월 응모']];
+const ACTION_ORDER = ['해지','체크','인출'];
 const TYPE_ORDER = ['daily','monthly','cancel'];
 let typeFilter = 'all';
-try{ const f=localStorage.getItem('promo-tracker-filter'); if(FILTERS.some(x=>x[0]===f)) typeFilter=f; }catch(_){}
+try{ const f=localStorage.getItem('promo-tracker-filter'); if(f && (['all','daily','monthly','cancel'].includes(f) || f.startsWith('act:'))) typeFilter=f; }catch(_){}
 
 /* ---------- 월 단위 계산 (매월 응모용) ---------- */
 function thisMonthKey(){ return todayStr().slice(0,7); }
@@ -623,7 +641,22 @@ async function importBackup(){
 }
 
 /* ---------- 상태 판단 ---------- */
-function typeLabel(t){ return t==='daily' ? '매일 출석' : t==='monthly' ? '매월 응모' : t==='cancel' ? '해지 필요' : '기타'; }
+function typeLabel(t){ return t==='daily' ? '매일 출석' : t==='monthly' ? '매월 응모' : t==='cancel' ? '처리 필요' : '기타'; }
+// 처리 필요 항목의 할 일 (예전 '해지 필요' 항목은 할 일이 없으니 '해지'로 봐요)
+function actionOf(e){ const a=String(e.action||'').trim(); return a || '해지'; }
+function entryLabel(e){ return e.type==='cancel' ? `${actionOf(e)} 필요` : typeLabel(e.type); }
+function stampWord(e){ return escapeHtml(actionOf(e).replace(/\s+/g,'').slice(0,4)); }
+function filterList(){
+  const acts=[...new Set((entries||[]).filter(e=>e.type==='cancel').map(actionOf))];
+  const rank=a=>{ const i=ACTION_ORDER.indexOf(a); return i<0 ? 99 : i; };
+  acts.sort((a,b)=>rank(a)-rank(b) || a.localeCompare(b));
+  return acts.length ? [...FILTERS_BASE, ...acts.map(a=>['act:'+a, a+' 필요'])] : [...FILTERS_BASE, ['cancel','처리 필요']];
+}
+function matchesFilter(e, f){
+  if(f==='all') return true;
+  if(f.startsWith('act:')) return e.type==='cancel' && actionOf(e)===f.slice(4);
+  return e.type===f;
+}
 function isEnded(e){ return e.done || (isRecurring(e) && dailyPhase(e)==='ended'); }
 function needsToday(e){
   if(isEnded(e)) return false;
@@ -640,7 +673,7 @@ function isSoonBucket(e){
   return (e.deadline ? daysBetween(e.deadline) : 999) <= 3;
 }
 function computeStamp(e){
-  if(e.done) return {cls:'gray', text: e.type==='cancel'?'해지\n완료':'완료'};
+  if(e.done) return {cls:'gray', text: e.type==='cancel'?`${stampWord(e)}\n완료`:'완료'};
   if(e.type==='daily'){
     const ph = dailyPhase(e);
     if(ph==='ended') return {cls:'gray', text:'기간\n종료'};
@@ -660,7 +693,7 @@ function computeStamp(e){
   }
   const d = e.deadline ? daysBetween(e.deadline) : null;
   if(d===null) return {cls:'gray', text:'-'};
-  if(d<=0) return {cls:'red', text:'해지\n가능'};
+  if(d<=0) return {cls:'red', text:`${stampWord(e)}\n가능`};
   return {cls:'teal', text:`D-${d}`};
 }
 function sortVal(e){
@@ -694,7 +727,7 @@ function render(){
     root.innerHTML='<div class="empty">아직 등록된 항목이 없어요.<br>위 버튼으로 출석체크나 이벤트를 등록해보세요.</div>';
     return;
   }
-  const shown = typeFilter==='all' ? entries : entries.filter(e=>e.type===typeFilter);
+  const shown = entries.filter(e=>matchesFilter(e,typeFilter));
   if(shown.length===0){
     root.innerHTML='<div class="empty">이 유형으로 등록된 항목이 없어요.</div>';
     return;
@@ -716,9 +749,11 @@ function renderFilters(){
   const box=document.getElementById('filters');
   if(!entries || entries.length===0){ box.hidden=true; box.innerHTML=''; return; }
   box.hidden=false;
-  box.innerHTML = FILTERS.map(([k,label])=>{
-    const n = k==='all' ? entries.length : entries.filter(e=>e.type===k).length;
-    return `<button type="button" class="chip${n===0?' zero':''}" data-filter="${k}" aria-pressed="${typeFilter===k}">${label}<b>${n}</b></button>`;
+  const list = filterList();
+  if(!list.some(x=>x[0]===typeFilter)) typeFilter='all';
+  box.innerHTML = list.map(([k,label])=>{
+    const n = entries.filter(e=>matchesFilter(e,k)).length;
+    return `<button type="button" class="chip${n===0?' zero':''}" data-filter="${escapeHtml(k)}" aria-pressed="${typeFilter===k}">${escapeHtml(label)}<b>${n}</b></button>`;
   }).join('');
 }
 
@@ -765,7 +800,7 @@ function renderProfit(){
     </table></div>`
     : `<p class="profit-note">확정 지급 항목이 아직 없어요. 항목을 등록하거나 수정할 때 지급 방식을 "확정 지급"으로 고르고 상품 가격을 넣어주세요.</p>`;
   panel.innerHTML = `<div class="profit-head"><b>월별 확정 수익</b><span>월말 기준 · 확정 지급 항목만 합산</span></div>${table}
-    <p class="profit-note">매월 응모는 체크한 달마다, 매일 출석·해지 항목은 종료일(해지 가능일)이 속한 달에 한 번 합산해요. 이번 달에 아직 체크 전인 매월 응모는 "예정"으로 들어가요. 추첨 지급은 합산하지 않아요.${excluded?` 종료일이 없는 항목 ${excluded}개는 빠져 있어요.`:''}</p>`;
+    <p class="profit-note">매월 응모는 체크한 달마다, 매일 출석·처리 필요 항목은 종료일(처리 가능일)이 속한 달에 한 번 합산해요. 이번 달에 아직 체크 전인 매월 응모는 "예정"으로 들어가요. 추첨 지급은 합산하지 않아요.${excluded?` 종료일이 없는 항목 ${excluded}개는 빠져 있어요.`:''}</p>`;
 }
 function payBadge(e){
   if(amountOf(e)) return `<span class="pay fixed">확정 ${fmtWon(amountOf(e))}</span>`;
@@ -878,7 +913,7 @@ function rowHtml(e){
       : ph==='ended' ? `${fmtDate(e.deadline)} 종료`
       : (checkedThisMonth(e) ? '매월 말일까지' : `${fmtDate(monthEndStr())}까지 · D-${daysToMonthEnd()}`) + (e.deadline ? ` · ~${fmtDate(e.deadline)}` : '');
   }else if(e.deadline){
-    dLabel = `${fmtDate(e.deadline)}부터 해지 가능`;
+    dLabel = `${fmtDate(e.deadline)}부터 ${escapeHtml(actionOf(e))} 가능`;
   }
   let urgentDate = '';
   if(!e.done){
@@ -901,7 +936,7 @@ function rowHtml(e){
         actions += `<button class="icon-btn undo" data-uncheck="${e.id}" title="이번 달 체크 취소" aria-label="이번 달 체크 취소">↶</button>`;
       actions += `<button class="icon-btn" data-done="${e.id}" title="보관함으로 옮기기" aria-label="보관">■</button>`;
     }else{
-      actions += `<button class="icon-btn" data-done="${e.id}" title="${e.type==='cancel'?'해지 완료':'완료'}" aria-label="완료">✓</button>`;
+      actions += `<button class="icon-btn" data-done="${e.id}" title="${e.type==='cancel'?escapeHtml(actionOf(e))+' 완료':'완료'}" aria-label="완료">✓</button>`;
     }
   }else{
     actions += `<button class="icon-btn" data-done="${e.id}" title="진행 중으로 되돌리기" aria-label="되돌리기">↺</button>`;
@@ -920,7 +955,7 @@ function rowHtml(e){
       <div class="entry-main">
         ${titleHtml}
         <div class="entry-meta">
-          <span class="tag t-${e.type}">${typeLabel(e.type)}</span>
+          <span class="tag t-${e.type}">${escapeHtml(entryLabel(e))}</span>
           ${payBadge(e)}
           ${e.org?`<span>${escapeHtml(e.org)}</span>`:''}
           ${e.memo?`<span>· ${escapeHtml(e.memo)}</span>`:''}
@@ -1029,7 +1064,7 @@ function closeForm(){
   closeCal();
   editingId=null;
   addForm.hidden=true; toggleFormBtn.hidden=false;
-  ['fTitle','fOrg','fUrl','fPrize','fMemo','fPayType','fAmount'].forEach(id=>document.getElementById(id).value='');
+  ['fTitle','fOrg','fUrl','fPrize','fMemo','fPayType','fAmount','fAction'].forEach(id=>document.getElementById(id).value='');
   setDate(fDeadline,''); setDate(fStart,''); fType.value='daily'; updateFormForType();
   document.getElementById('formTitle').textContent='새 항목 등록';
   document.getElementById('saveEntryBtn').textContent='등록하기';
@@ -1045,6 +1080,7 @@ function openEdit(e){
   document.getElementById('fPayType').value=e.payType||'';
   document.getElementById('fAmount').value=Number(e.amount)>0 ? Number(e.amount).toLocaleString('ko-KR') : '';
   fType.value=e.type||'daily';
+  document.getElementById('fAction').value = e.type==='cancel' ? actionOf(e) : '';
   setDate(fStart, isRecurring(e) ? startOf(e) : '');
   setDate(fDeadline, e.deadline||'');
   updateFormForType();
@@ -1059,21 +1095,29 @@ function updateFormForType(){
   const recurring = t==='daily' || t==='monthly';
   document.getElementById('startField').hidden = !recurring;
   if(recurring && !dateVal(fStart)) setDate(fStart, todayStr());
-  document.getElementById('deadlineLabel').textContent = t==='cancel' ? '해지 가능일 (지급일 이후)' : '종료일 (선택)';
+  const act = document.getElementById('fAction').value.trim() || '처리';
+  document.getElementById('actionRow').hidden = t!=='cancel';
+  document.querySelectorAll('.pick').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.pick===act)));
+  document.getElementById('deadlineLabel').textContent = t==='cancel' ? `${act} 가능일` : '종료일 (선택)';
   const pay = document.getElementById('fPayType').value;
   document.getElementById('amountField').hidden = pay!=='fixed';
   const ah = document.getElementById('amountHint');
   ah.hidden = pay!=='fixed';
   ah.textContent = t==='monthly' ? '매달 받는 금액이에요. 매월 체크한 달마다 이번 달 수익에 합산돼요.'
-    : t==='cancel' ? '한 번 받는 금액이에요. 해지 가능일이 속한 달 수익에 합산돼요.'
+    : t==='cancel' ? `한 번 받는 금액이에요. ${act} 가능일이 속한 달 수익에 합산돼요.`
     : '한 번 받는 금액이에요. 종료일이 속한 달 수익에 합산돼요. (종료일이 없으면 합산에서 빠져요)';
   const hint = document.getElementById('formHint');
   hint.hidden = !(recurring || t==='cancel');
   hint.textContent = t==='monthly' ? '매월 말일까지 한 번 체크하면 돼요. 종료일을 비워두면 계속 이어져요.'
-    : t==='cancel' ? '혜택을 받은 뒤 해지해도 되는 날짜를 골라주세요. 그 날이 되면 "지금 확인"에 올라와요.'
+    : t==='cancel' ? `${act}할 수 있는 날짜를 골라주세요. 그 날이 되면 "지금 확인"에 올라와요.`
     : '종료일을 비워두면 끝날 때까지 상시로 체크해요.';
 }
 fType.addEventListener('change', updateFormForType);
+document.getElementById('actionRow').addEventListener('click', ev=>{
+  const b=ev.target.closest('.pick'); if(!b) return;
+  document.getElementById('fAction').value=b.dataset.pick; updateFormForType();
+});
+document.getElementById('fAction').addEventListener('input', updateFormForType);
 document.getElementById('fPayType').addEventListener('change', updateFormForType);
 document.getElementById('fAmount').addEventListener('input', ev=>{
   const n=ev.target.value.replace(/[^0-9]/g,'');
@@ -1088,6 +1132,8 @@ addForm.addEventListener('submit', async ev=>{
   const type=fType.value;
   const recurring = type==='daily' || type==='monthly';
   const deadline=dateVal(fDeadline)||null;
+  const action = type==='cancel' ? document.getElementById('fAction').value.trim() : null;
+  if(type==='cancel' && !action){ document.getElementById('fAction').focus(); return; }
   if(type==='cancel' && !deadline){ focusDate(fDeadline); return; }
   const startDate = recurring ? (dateVal(fStart)||todayStr()) : null;
   if(recurring && deadline && deadline<startDate){ focusDate(fDeadline); return; }
@@ -1100,7 +1146,7 @@ addForm.addEventListener('submit', async ev=>{
     url:document.getElementById('fUrl').value.trim(),
     prize:document.getElementById('fPrize').value.trim(),
     memo:document.getElementById('fMemo').value.trim(),
-    type, deadline, startDate, payType, amount
+    type, action, deadline, startDate, payType, amount
   };
   if(editingId){
     const id=editingId;
