@@ -3,6 +3,7 @@
 ## 주소 모음
 - 응모 수첩: https://bae4021.github.io/eungmo/
 - 연차관리대장: https://bae4021.github.io/eungmo/leave/
+- 카드 지갑: https://bae4021.github.io/eungmo/cards/
 - Firebase 콘솔 (로그인·데이터·보안 규칙): https://console.firebase.google.com/project/eungmo
 - 두 페이지 맨 위의 메뉴로 서로 오갈 수 있어요.
 
@@ -19,3 +20,9 @@
 - 주소: https://bae4021.github.io/eungmo/leave/
 - 기록은 Firestore `users/{uid}/apps/leave` 문서 하나에 저장돼요 (기존 아티팩트와 같은 구조).
 - 같은 `fb.js`(저장소 맨 위)를 같이 써요.
+
+## 카드 지갑
+
+- 주소: https://bae4021.github.io/eungmo/cards/
+- 카드 한 장 = Firestore 문서 하나 (`users/{uid}/cards/{카드}`).
+- 카드 번호·CVC 같은 정보는 저장하지 않아요.
