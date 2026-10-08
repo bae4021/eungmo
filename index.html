@@ -88,6 +88,8 @@ body{
 .sync-dot{width:9px;height:9px;border-radius:50%;background:var(--stamp-teal);flex-shrink:0;box-shadow:0 0 0 3px rgba(30,127,114,0.18);}
 .sync-note.ok{color:var(--stamp-teal);font-weight:600;}
 .sync-dot.off{background:var(--ink-soft);box-shadow:none;}
+.sync-dot.warn{background:var(--gold);box-shadow:0 0 0 3px rgba(166,124,61,0.22);}
+.sync-note.warn{color:#7a5624;font-weight:600;}
 .add-toggle{
   width:100%;padding:12px;border:1px dashed var(--ink-soft);background:transparent;border-radius:8px;
   color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:16px;
@@ -402,7 +404,6 @@ const STORE_KEY = 'promo-tracker-entries';
 let entries = null;
 let dbReady = false;
 let pendingWrites = 0;
-const writeQueues = {}; // 항목별로 쓰기를 한 번에 하나씩
 
 /* ---------- 날짜 (한국 시간 기준 로컬 날짜) ---------- */
 function ymd(d){
@@ -490,10 +491,14 @@ function setAppVisible(on){
 }
 function setSyncStatus(mode, msg){
   const dot=document.getElementById('syncDot'), label=document.getElementById('syncLabel'), footer=document.getElementById('footerNote');
-  const ok = mode==='online';
-  dot.classList.toggle('off', !ok); dot.parentElement.classList.toggle('ok', ok);
+  const ok = mode==='online', warn = mode==='pending';
+  dot.classList.toggle('off', !ok && !warn); dot.classList.toggle('warn', warn);
+  dot.parentElement.classList.toggle('ok', ok); dot.parentElement.classList.toggle('warn', warn);
   const help=document.getElementById('syncHelp');
-  if(mode==='online'){
+  if(mode==='pending'){
+    label.textContent='아직 서버에 저장되지 않았어요 · 이 기기에 보관 중이고, 연결되면 자동으로 저장돼요';
+    help.hidden=true;
+  }else if(mode==='online'){
     label.textContent='계정에 저장 중 · 어느 기기에서든 그대로 보여요';
     help.hidden=true;
   }else if(mode==='offline'){
@@ -523,6 +528,7 @@ function fbErrText(e){
   if(c==='permission-denied') return '이 계정은 이 수첩을 열 수 없어요. 로그인한 계정과 Firestore 보안 규칙의 이메일이 같은지 확인해주세요.';
   if(c==='failed-precondition'||c==='not-found') return 'Firestore 데이터베이스가 아직 없거나 준비 중이에요. Firebase에서 Firestore 데이터베이스를 만들었는지 확인해주세요.';
   if(c==='unavailable') return '서버에 연결할 수 없어요. 인터넷 연결을 확인해주세요.';
+  if(c==='resource-exhausted') return '오늘 무료 사용 한도를 다 썼어요. 기록은 이 기기에 보관돼 있고, 한국 시간 오후 4~5시쯤 한도가 초기화되면 자동으로 저장돼요.';
   return (e&&e.message)||String(e||'알 수 없는 오류');
 }
 async function initStore(){
@@ -549,7 +555,7 @@ async function initStore(){
     unsub = fb.onSnapshot(entriesRef, {includeMetadataChanges:true}, snap=>{
       entries = snap.docs.map(d=>({id:d.id, ...d.data()}));
       dbReady = true;
-      setSyncStatus(snap.metadata.fromCache && !navigator.onLine ? 'offline' : 'online');
+      watchPending(snap.metadata.hasPendingWrites);
       render();
     }, err=>{
       console.error('snapshot error', err);
@@ -572,19 +578,33 @@ async function login(){
   }
 }
 async function logout(){ if(fb) await fb.signOut(fb.auth); }
-window.addEventListener('online', ()=>{ if(user && dbReady) setSyncStatus('online'); });
-window.addEventListener('offline', ()=>{ if(user && dbReady) setSyncStatus('offline'); });
-
-function queued(id, fn){
-  const prev = writeQueues[id] || Promise.resolve();
-  const next = prev.then(fn, fn);
-  writeQueues[id] = next.catch(()=>{});
-  return next;
+// 서버에 아직 안 올라간 기록이 오래(10초) 남아 있으면 노란색으로 알려줘요
+const PENDING_WARN_MS = window.__pendingWarnMs || 10000;
+let pendingTimer = null, pendingLong = false;
+function refreshStatus(){
+  if(!user || !dbReady) return;
+  setSyncStatus(!navigator.onLine ? 'offline' : pendingLong ? 'pending' : 'online');
 }
+function watchPending(has){
+  if(has){
+    if(!pendingTimer && !pendingLong) pendingTimer=setTimeout(()=>{ pendingTimer=null; pendingLong=true; refreshStatus(); }, PENDING_WARN_MS);
+  }else{
+    clearTimeout(pendingTimer); pendingTimer=null; pendingLong=false;
+  }
+  refreshStatus();
+}
+window.addEventListener('online', refreshStatus);
+window.addEventListener('offline', refreshStatus);
+
+// 저장은 바로 요청해요. 기기에 먼저 보관되고, 서버에는 순서대로 올라가요.
 async function saveToServer(id, fn, failMsg){
   if(!entriesRef){ flash('로그인한 뒤에 저장돼요'); return; }
-  try{ await queued(id, fn); }
-  catch(e){ console.error(e); flash(failMsg+' '+fbErrText(e)); }
+  try{ await fn(); }
+  catch(e){
+    console.error(e);
+    if(e && e.code==='permission-denied') setSyncStatus('error', fbErrText(e));
+    else flash(failMsg+' '+fbErrText(e));
+  }
 }
 async function createEntry(entry){
   const {id,...data} = entry;
@@ -632,12 +652,15 @@ async function importBackup(){
   if(!add.length){ msg.textContent='새로 가져올 항목이 없어요 (이미 다 있어요).'; return; }
   btn.disabled=true; btn.textContent='가져오는 중...';
   try{
+    const commits=[];
     for(let i=0;i<add.length;i+=400){
       const batch=fb.writeBatch(fb.db);
       add.slice(i,i+400).forEach(e=>{ const {id,...data}=e; batch.set(fb.doc(entriesRef,String(id)), data); });
-      await batch.commit();
+      commits.push(batch.commit());
     }
-    msg.textContent=`${add.length}개 항목을 가져왔어요 ✓`;
+    const saved = await Promise.race([Promise.all(commits).then(()=>true), new Promise(r=>setTimeout(()=>r(false), 15000))]);
+    msg.textContent = saved ? `${add.length}개 항목을 가져왔어요 ✓`
+      : `${add.length}개 항목을 가져왔어요. 서버 저장이 늦어지고 있어서, 연결되면 자동으로 저장돼요.`;
     document.getElementById('importText').value='';
   }catch(e){
     console.error(e); msg.textContent='가져오지 못했어요. '+fbErrText(e);

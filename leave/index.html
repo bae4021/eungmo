@@ -467,6 +467,7 @@
     if(c==='auth/popup-closed-by-user' || c==='auth/cancelled-popup-request') return '로그인 창이 닫혔어요. 다시 눌러주세요.';
     if(c==='auth/unauthorized-domain') return 'Firebase 승인된 도메인에 bae4021.github.io가 없어요.';
     if(c==='auth/network-request-failed' || c==='unavailable') return '인터넷 연결을 확인해주세요.';
+    if(c==='resource-exhausted') return '오늘 무료 사용 한도를 다 썼어요. 기록은 이 기기에 보관돼 있고, 한국 시간 오후 4~5시쯤 한도가 초기화되면 자동으로 저장돼요.';
     if(c==='permission-denied') return '이 계정은 열 수 없거나, Firestore 보안 규칙이 아직 바뀌지 않았어요. 로그인한 계정과 보안 규칙을 확인해주세요.';
     return (e && e.message) || String(e || '알 수 없는 오류');
   }
@@ -478,9 +479,9 @@
   function storeSet(key, val){
     docCache[key] = val;
     if(!docRef){ setSaveStatus('error'); return Promise.resolve(); }
-    setSaveStatus('saving');
+    setSaveStatus(pendingLong ? 'pending' : 'saving');
     fb.setDoc(docRef, {[key]: val}, {mergeFields:[key]})
-      .then(()=>setSaveStatus('saved'))
+      .then(()=>{ if(!pendingLong) setSaveStatus('saved'); })
       .catch(e=>{ console.error('save failed', key, e); setSaveStatus('error', e); });
     return Promise.resolve();
   }
@@ -500,6 +501,9 @@
       el.textContent = '로그인이 필요해요'; el.className = 'save-status warn';
     } else if(kind==='fatal'){
       el.textContent = err; el.className = 'save-status err';
+    } else if(kind==='pending'){
+      el.textContent = '아직 서버에 저장되지 않았어요 · 이 기기에 보관 중이고, 연결되면 자동으로 저장돼요';
+      el.className = 'save-status warn';
     } else if(kind==='saved'){
       const d = new Date();
       el.textContent = `계정에 기록 중 · ${pad2(d.getHours())}:${pad2(d.getMinutes())} 저장됨`;
@@ -549,6 +553,19 @@
     }catch(e){ console.error(e); msg.textContent = fbErrText(e); }
   }
 
+  // 서버에 아직 안 올라간 기록이 오래(10초) 남아 있으면 노란색으로 알려줘요
+  const PENDING_WARN_MS = window.__pendingWarnMs || 10000;
+  let pendingTimer = null, pendingLong = false;
+  function watchPending(has){
+    if(has){
+      if(!pendingTimer && !pendingLong) pendingTimer = setTimeout(()=>{ pendingTimer = null; pendingLong = true; setSaveStatus(navigator.onLine ? 'pending' : 'saving'); }, PENDING_WARN_MS);
+    }else{
+      const was = pendingLong;
+      clearTimeout(pendingTimer); pendingTimer = null; pendingLong = false;
+      if(was) setSaveStatus('saved');
+    }
+  }
+
   function startStore(){
     fb.onAuthStateChanged(fb.auth, u=>{
       if(unsub){ unsub(); unsub = null; }
@@ -559,7 +576,8 @@
       document.getElementById('authMsg').textContent = '';
       setSaveStatus('loading');
       docRef = fb.doc(fb.db, 'users', user.uid, 'apps', 'leave');
-      unsub = fb.onSnapshot(docRef, snap=>{
+      unsub = fb.onSnapshot(docRef, {includeMetadataChanges:true}, snap=>{
+        watchPending(snap.metadata.hasPendingWrites);
         if(loaded && snap.metadata.hasPendingWrites) return; // 방금 내가 바꾼 내용 (화면엔 이미 반영됨)
         docCache = snap.exists() ? (snap.data() || {}) : {};
         applyState();
@@ -576,10 +594,11 @@
         if(!isEditing()) render();
       }, err=>{
         console.error('snapshot error', err);
-        loaded = false;
-        showApp(false);
-        document.getElementById('authMsg').textContent = fbErrText(err);
         setSaveStatus('error', err);
+        if(!loaded){   // 처음 불러오다 실패했을 때만 로그인 화면으로 (이미 보던 기록은 그대로 둬요)
+          showApp(false);
+          document.getElementById('authMsg').textContent = fbErrText(err);
+        }
       });
     });
   }
