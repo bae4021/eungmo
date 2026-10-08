@@ -35,9 +35,15 @@
   .masthead{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:3px double var(--line-strong);padding-bottom:14px;margin-bottom:22px;flex-wrap:wrap;gap:14px;}
   .masthead h1{font-family:var(--serif);font-weight:700;font-size:26px;margin:0;letter-spacing:-0.5px;}
   .masthead .sub{font-size:12px;color:var(--ink-soft);margin-top:4px;letter-spacing:0.4px;}
-  .save-status{font-size:11px;margin-top:5px;letter-spacing:0.2px;}
+  .save-status{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;margin-top:9px;padding:4px 11px 4px 9px;
+    border:1px solid var(--line-strong);border-radius:999px;background:var(--paper-2);letter-spacing:0.2px;max-width:100%;}
+  .save-status::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0;}
+  .save-status:empty{display:none;}
   .save-status.ok{color:var(--stamp-green);}
+  .save-status.ok::before{box-shadow:0 0 0 3px rgba(76,186,132,0.22);}
   .save-status.warn{color:var(--gold);}
+  .save-status.err{color:var(--stamp-red);border-color:var(--stamp-red-dim);}
+  .acct-line{font-size:11px;color:var(--ink-soft);margin-top:7px;}
   .year-picker{display:flex;align-items:center;gap:8px;font-family:var(--mono);}
   .year-picker button{width:26px;height:26px;border:1px solid var(--line-strong);background:var(--white);color:var(--ink);cursor:pointer;border-radius:var(--radius);font-family:var(--mono);}
   .year-picker button:hover{background:var(--paper-2);}
@@ -202,7 +208,7 @@
       <h1>연차관리대장</h1>
       <div class="sub">휴가 계획 · 연차 사용 · 잔여일수 원장</div>
       <div class="save-status" id="saveStatus"></div>
-      <div class="save-status acct" id="acct" style="color:var(--ink-soft);"></div>
+      <div class="acct-line" id="acct"></div>
     </div>
     <div class="year-picker">
       <button id="yPrev">‹</button>
@@ -468,7 +474,7 @@
     if(!docRef){ setSaveStatus('error'); return Promise.resolve(); }
     setSaveStatus('saving');
     fb.setDoc(docRef, {[key]: val}, {mergeFields:[key]})
-      .then(()=>setSaveStatus('ok'))
+      .then(()=>setSaveStatus('saved'))
       .catch(e=>{ console.error('save failed', key, e); setSaveStatus('error', e); });
     return Promise.resolve();
   }
@@ -477,19 +483,23 @@
     const el = document.getElementById('saveStatus');
     if(!el) return;
     if(kind==='error'){
-      el.textContent = '⚠ 저장 실패 — ' + (err ? fbErrText(err) : '로그인 상태를 확인해주세요');
-      el.className = 'save-status warn';
+      el.textContent = '저장 실패 — ' + (err ? fbErrText(err) : '로그인 상태를 확인해주세요');
+      el.className = 'save-status err';
     } else if(kind==='saving'){
-      el.textContent = navigator.onLine ? '☁ 저장 중...' : '⏸ 오프라인 · 연결되면 자동으로 저장돼요';
+      el.textContent = navigator.onLine ? '저장 중...' : '오프라인 · 연결되면 자동으로 저장돼요';
       el.className = 'save-status warn';
     } else if(kind==='loading'){
       el.textContent = '불러오는 중...'; el.className = 'save-status warn';
     } else if(kind==='login'){
       el.textContent = '로그인이 필요해요'; el.className = 'save-status warn';
     } else if(kind==='fatal'){
-      el.textContent = '⚠ ' + err; el.className = 'save-status warn';
+      el.textContent = err; el.className = 'save-status err';
+    } else if(kind==='saved'){
+      const d = new Date();
+      el.textContent = `계정에 기록 중 · ${pad2(d.getHours())}:${pad2(d.getMinutes())} 저장됨`;
+      el.className = 'save-status ok';
     } else {
-      el.textContent = '☁ 계정에 자동 저장됨'; el.className = 'save-status ok';
+      el.textContent = '계정에 기록 중 · 어느 기기에서든 그대로 보여요'; el.className = 'save-status ok';
     }
   }
 
@@ -622,7 +632,7 @@
         ? `시나리오 ${state.scenarios.length}개 · 사용 내역 ${n}건을 가져왔어요 ✓`
         : '가져왔어요. 인터넷이 느려서 저장이 늦어지고 있어요 — 연결되면 자동으로 저장돼요.';
       document.getElementById('importText').value = '';
-      setSaveStatus('ok');
+      setSaveStatus('saved');
     }catch(e){
       console.error(e); msg.textContent = '가져오지 못했어요. ' + fbErrText(e);
     }finally{ btn.disabled = false; }
