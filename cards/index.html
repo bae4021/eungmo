@@ -107,6 +107,10 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .rate-row{display:grid;grid-template-columns:92px 90px 132px 1fr 92px;gap:8px;align-items:center;}
 .r-free{height:38px;border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;white-space:nowrap;}
 .r-free[aria-pressed="true"]{background:rgba(30,127,92,0.12);border-color:rgba(30,127,92,0.45);color:var(--ok);}
+.rate-head{font-size:12px;font-weight:700;color:var(--accent);padding:2px 2px 0;}
+.rate-row.sub{position:relative;padding-left:20px;}
+.rate-row.sub::before{content:'└';position:absolute;left:5px;top:9px;color:var(--ink-soft);font-size:13px;}
+.rate-row.sub .rtag{background:var(--surface);border:1px solid rgba(31,59,115,0.2);}
 .rate-row .rtag{font-size:12px;font-weight:700;color:var(--accent);background:rgba(31,59,115,0.08);border-radius:999px;padding:6px 10px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .rate-row input,.rate-row select{min-width:0;}
 .swatches{display:flex;gap:8px;flex-wrap:wrap;}
@@ -166,6 +170,15 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .tag i{font-style:normal;color:var(--ink-soft);margin-left:3px;}
 .tags.rated{flex-direction:column;align-items:flex-start;gap:4px;}
 .tags.rated .tag{font-size:12px;padding:3px 9px;}
+/* 세부가 있는 분야: 상위 분야 안에 세부를 묶어서 보여줘요 */
+.tag.fam{display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px;border-radius:10px;padding:5px 10px 6px;}
+.tags.rated .tag.fam{padding:5px 10px 6px;}
+.tag.fam .fname{font-weight:600;}
+.tag.fam .subs{display:flex;flex-wrap:wrap;gap:4px;}
+.tag.fam .sub{font-size:11px;background:var(--surface);border:1px solid rgba(31,59,115,0.16);border-radius:999px;padding:1px 8px;color:var(--accent);}
+.tag.fam .sub b{font-weight:700;margin-left:3px;}
+.tag.fam .sub i{font-style:normal;color:var(--ink-soft);margin-left:3px;}
+.tags.rated .tag.fam .subs{flex-direction:column;align-items:flex-start;}
 .tag em{font-style:normal;font-size:10px;font-weight:700;margin-left:6px;padding:1px 6px;border-radius:999px;background:rgba(30,127,92,0.13);color:var(--ok);}
 .bgroups{display:flex;flex-direction:column;gap:4px;}
 .bh{font-size:10.5px;font-weight:700;color:var(--ink-soft);margin-top:2px;}
@@ -448,10 +461,30 @@ function tagChipHtml(c, t, badge){
   return `<span class="tag" title="${esc(t)}">${esc(tagLabel(t))}${val?`<b>${esc(val)}</b>`:''}${r&&r.note?`<i>· ${esc(r.note)}</i>`:''}${badge&&r&&r.free?'<em>무실적</em>':''}</span>`;
 }
 // 무실적 혜택과 실적 필요 혜택이 섞여 있으면 둘로 나눠서 보여줘요
+function rateBits(r, badge){
+  const val=rateText(r);
+  return `${val?`<b>${esc(val)}</b>`:''}${r&&r.note?`<i>· ${esc(r.note)}</i>`:''}${badge&&r&&r.free?'<em>무실적</em>':''}`;
+}
+function chipsHtml(c, list, badge){
+  const out=[], fams=new Map();
+  list.forEach(t=>{
+    const fam = isSubTag(t) ? parentOf(t) : (SUBTAGS[t] ? t : null);
+    if(!fam){ out.push({one:t}); return; }
+    if(!fams.has(fam)){ const g={fam, parent:false, subs:[]}; fams.set(fam,g); out.push(g); }
+    const g=fams.get(fam); if(t===fam) g.parent=true; else g.subs.push(t);
+  });
+  return out.map(x=>{
+    if(x.one) return tagChipHtml(c, x.one, badge);
+    if(!x.subs.length) return tagChipHtml(c, x.fam, badge);
+    const head=`<span class="fname">${esc(x.fam)}${x.parent ? rateBits(rateOf(c,x.fam), badge) : ''}</span>`;
+    const subs=x.subs.map(t=>`<span class="sub" title="${esc(t)}">${esc(subName(t))}${rateBits(rateOf(c,t), badge)}</span>`).join('');
+    return `<span class="tag fam">${head}<span class="subs">${subs}</span></span>`;
+  }).join('');
+}
 function tagsHtml(c){
   const tags=c.tags||[]; if(!tags.length) return '';
   const rated=tags.some(t=>rateOf(c,t)) ? ' rated' : '';
-  const box=(list,badge)=>`<div class="tags${rated}">${list.map(t=>tagChipHtml(c,t,badge)).join('')}</div>`;
+  const box=(list,badge)=>`<div class="tags${rated}">${chipsHtml(c,list,badge)}</div>`;
   const free=tags.filter(t=>isFree(c,t)), req=tags.filter(t=>!isFree(c,t));
   if(free.length && req.length) return `<div class="bgroups"><div class="bh free">무실적 혜택</div>${box(free,false)}<div class="bh">전월 실적 채우면</div>${box(req,false)}</div>`;
   return box(tags, true);
@@ -738,7 +771,7 @@ $('imgRemove').addEventListener('click', ()=>{ formImage=''; imgSource=null; img
 let formRates={};
 function rateRowHtml(t){
   const r=formRates[t]||{}, u=r.u||defaultUnit(t);
-  return `<div class="rate-row" data-tag="${esc(t)}">
+  return `<div class="rate-row${isSubTag(t)?' sub':''}" data-tag="${esc(t)}">
     <span class="rtag" title="${esc(t)}">${esc(tagLabel(t))}</span>
     <input class="r-v" inputmode="decimal" placeholder="숫자" value="${r.v!=null?esc(r.v):''}" aria-label="${esc(t)} 혜택 숫자">
     <select class="r-u" aria-label="${esc(t)} 혜택 단위">${UNITS.map(([k,l])=>`<option value="${k}" ${k===u?'selected':''}>${l}</option>`).join('')}</select>
@@ -748,7 +781,13 @@ function rateRowHtml(t){
 }
 function drawRateRows(){
   const sel=sortTags([...formTags]);
-  $('rateRows').innerHTML=sel.map(rateRowHtml).join('');
+  const headed=new Set();
+  $('rateRows').innerHTML=sel.map(t=>{
+    // 상위 분야를 안 고르고 세부만 골랐으면, 세부 위에 상위 이름만 적어줘요
+    let head='';
+    if(isSubTag(t)){ const p=parentOf(t); if(!formTags.has(p) && !headed.has(p)){ headed.add(p); head=`<div class="rate-head">${esc(p)}</div>`; } }
+    return head + rateRowHtml(t);
+  }).join('');
   $('rateHint').hidden=!sel.length;
 }
 function syncRate(row){
