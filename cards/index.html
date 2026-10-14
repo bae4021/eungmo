@@ -98,6 +98,10 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .field textarea{min-height:76px;resize:vertical;line-height:1.55;}
 .field .hint{font-size:11px;color:var(--ink-soft);}
 .tag-pick{display:flex;flex-wrap:wrap;gap:6px;}
+.sub-pick{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
+.sub-pick:empty{display:none;}
+.sub-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);}
+.sub-row .lbl{font-size:11.5px;font-weight:700;color:var(--ink-soft);margin-right:4px;}
 .rates-edit{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
 .rates-edit:empty{display:none;}
 .rate-row{display:grid;grid-template-columns:92px 90px 132px 1fr 92px;gap:8px;align-items:center;}
@@ -290,6 +294,7 @@ table.tbl{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
       <div class="field" style="margin-bottom:12px;">
         <span class="label">혜택 분야 (여러 개 고를 수 있어요)</span>
         <div class="tag-pick" id="tagPick"></div>
+        <div class="sub-pick" id="subPick"></div>
         <div class="rates-edit" id="rateRows"></div>
         <span class="hint" id="rateHint" hidden>분야마다 혜택을 숫자와 단위로 적을 수 있어요. 비워둬도 돼요. 예: 카페 50 % 할인 · 스타벅스. 전월 실적을 못 채워도 받는 혜택은 오른쪽 버튼을 눌러 <b>무실적</b>으로 바꿔주세요.</span>
       </div>
@@ -357,7 +362,14 @@ const $ = id => document.getElementById(id);
 const ISSUERS = ['신한','삼성','현대','KB국민','롯데','하나','우리','BC','NH농협','IBK기업','씨티','카카오뱅크','토스뱅크','SC제일','수협','광주','전북','제주','우체국'];
 const NETWORKS = ['VISA','Mastercard','JCB','AMEX','UnionPay','국내전용'];
 const GRADES = ['일반','Gold','Platinum','Signature','World','World Elite','Infinite','Ultimate','Black','Diamond'];
-const TAGS = ['쇼핑','온라인','간편결제','주유','택시','통신','카페','외식','편의점','마트','해외','면세점','항공','마일리지','포인트·캐시백','공과금','구독'];
+const TAGS = ['쇼핑','온라인','간편결제','주유','택시','통신','카페','외식','영화','편의점','마트','해외','면세점','항공','마일리지','포인트·캐시백','공과금','구독'];
+// 세부로 나눌 수 있는 분야: '영화'만 고르면 영화 전체, 세부를 고르면 '영화 · CGV'처럼 따로 저장돼요
+const SUBTAGS = {'영화':['CGV','롯데시네마','메가박스']};
+const SUBSEP = ' · ';
+function parentOf(t){ const k=String(t).indexOf(SUBSEP); return k<0 ? t : t.slice(0,k); }
+function subName(t){ const k=String(t).indexOf(SUBSEP); return k<0 ? t : t.slice(k+SUBSEP.length); }
+function isSubTag(t){ return String(t).includes(SUBSEP) && !!SUBTAGS[parentOf(t)]; }
+function tagLabel(t){ return isSubTag(t) ? subName(t) : t; }
 const COLORS = [['#1F2A44','남색'],['#1B1B1F','검정'],['#7E858F','실버'],['#A9874F','골드'],['#B23A2E','빨강'],['#1E6F5C','초록'],['#2F5DA8','파랑'],['#5B4B8A','보라'],['#C2577A','분홍']];
 
 /* ---------- 작은 도구 ---------- */
@@ -400,7 +412,10 @@ function spendShort(c){
 }
 function tierText(t){ return `${minLabel(t.min)} → 한도 ${t.limit!=null?won(t.limit):'—'}${t.note?` (${t.note})`:''}`; }
 // 예전 '항공·마일리지'는 '항공'과 '마일리지' 두 개로 나눠요
-function sortTags(list){ const r=t=>{ const i=TAGS.indexOf(t); return i<0?999:i; }; return [...list].sort((a,b)=>r(a)-r(b)); }
+function sortTags(list){
+  const r=t=>{ const p=parentOf(t), i=TAGS.indexOf(p); if(i<0) return 999; if(p===t) return i; const k=(SUBTAGS[p]||[]).indexOf(subName(t)); return i+0.1+(k<0?0.09:k*0.01); };
+  return [...list].sort((a,b)=>r(a)-r(b));
+}
 function normTags(tags){
   const out=[]; (Array.isArray(tags)?tags:[]).forEach(t=>{ (t==='항공·마일리지' ? ['항공','마일리지'] : [t]).forEach(x=>{ if(x && !out.includes(x)) out.push(x); }); });
   return sortTags(out);
@@ -418,7 +433,7 @@ const UNITS = [
   ['mile',   '마일/1천원', v=>`1천원당 ${v}마일`],
 ];
 const UNIT_FMT = Object.fromEntries(UNITS.map(([k,,f])=>[k,f]));
-function defaultUnit(tag){ return tag==='주유' ? 'won_l' : tag==='마일리지'||tag==='항공' ? 'mile' : tag==='포인트·캐시백' ? 'pct_pt' : 'pct_off'; }
+function defaultUnit(tag){ return parentOf(tag)==='영화' ? 'won_off' : tag==='주유' ? 'won_l' : tag==='마일리지'||tag==='항공' ? 'mile' : tag==='포인트·캐시백' ? 'pct_pt' : 'pct_off'; }
 function rateOf(c, tag){ const r=c && c.rates && c.rates[tag]; return r && (r.v!=null || r.note || r.free) ? r : null; }
 // 무실적 혜택: 전월 실적을 못 채워도 받는 혜택
 function isFree(c, tag){ const r=rateOf(c,tag); return !!(r && r.free); }
@@ -430,7 +445,7 @@ function rateText(r){
 }
 function tagChipHtml(c, t, badge){
   const r=rateOf(c,t), val=rateText(r);
-  return `<span class="tag">${esc(t)}${val?`<b>${esc(val)}</b>`:''}${r&&r.note?`<i>· ${esc(r.note)}</i>`:''}${badge&&r&&r.free?'<em>무실적</em>':''}</span>`;
+  return `<span class="tag" title="${esc(t)}">${esc(tagLabel(t))}${val?`<b>${esc(val)}</b>`:''}${r&&r.note?`<i>· ${esc(r.note)}</i>`:''}${badge&&r&&r.free?'<em>무실적</em>':''}</span>`;
 }
 // 무실적 혜택과 실적 필요 혜택이 섞여 있으면 둘로 나눠서 보여줘요
 function tagsHtml(c){
@@ -561,8 +576,8 @@ function visibleCards(){
     (!filt.issuer || (c.issuer||'')===filt.issuer) &&
     (!filt.grade || (c.grade||'')===filt.grade) &&
     (!filt.network || normNet(c.network)===filt.network) &&
-    (!filt.tag || (c.tags||[]).includes(filt.tag)) &&
-    (!filt.free || (filt.tag ? isFree(c, filt.tag) : hasFree(c))) &&
+    (!filt.tag || (c.tags||[]).some(t=>parentOf(t)===filt.tag)) &&
+    (!filt.free || (filt.tag ? (c.tags||[]).some(t=>parentOf(t)===filt.tag && isFree(c,t)) : hasFree(c))) &&
     (!q || haystack(c).includes(q)));
   const byNum=(k,dir)=>(a,b)=>{ const x=a[k], y=b[k]; if(x==null&&y==null) return 0; if(x==null) return 1; if(y==null) return -1; return dir*(x-y); };
   const byStr=k=>(a,b)=>String(a[k]||'￿').localeCompare(String(b[k]||'￿'),'ko') || String(a.name||'').localeCompare(String(b.name||''),'ko');
@@ -593,7 +608,7 @@ function render(){
   $('fGrade').innerHTML = `<option value="">등급 전체</option>` + grades.map(v=>`<option ${v===filt.grade?'selected':''}>${esc(v)}</option>`).join('');
   $('fIssuer').hidden = issuers.length<2 && !filt.issuer; $('fGrade').hidden = grades.length<2 && !filt.grade;
 
-  const nets=countBy(c=>normNet(c.network)), tags=countBy(c=>c.tags||[]);
+  const nets=countBy(c=>normNet(c.network)), tags=countBy(c=>[...new Set((c.tags||[]).map(parentOf))]);
   if(filt.network && !nets.has(filt.network)) filt.network='';
   if(filt.tag && !tags.has(filt.tag)) filt.tag='';
   const chipRow=(label,map,order,key)=> map.size ? `<span class="lbl">${label}</span>` + orderBy(map.keys(),order).map(v=>
@@ -724,7 +739,7 @@ let formRates={};
 function rateRowHtml(t){
   const r=formRates[t]||{}, u=r.u||defaultUnit(t);
   return `<div class="rate-row" data-tag="${esc(t)}">
-    <span class="rtag" title="${esc(t)}">${esc(t)}</span>
+    <span class="rtag" title="${esc(t)}">${esc(tagLabel(t))}</span>
     <input class="r-v" inputmode="decimal" placeholder="숫자" value="${r.v!=null?esc(r.v):''}" aria-label="${esc(t)} 혜택 숫자">
     <select class="r-u" aria-label="${esc(t)} 혜택 단위">${UNITS.map(([k,l])=>`<option value="${k}" ${k===u?'selected':''}>${l}</option>`).join('')}</select>
     <input class="r-note" maxlength="40" placeholder="조건 (선택) 예: 스타벅스, 월 4회" value="${esc(r.note||'')}" aria-label="${esc(t)} 혜택 조건">
@@ -732,8 +747,7 @@ function rateRowHtml(t){
   </div>`;
 }
 function drawRateRows(){
-  const order=[...TAGS, ...[...formTags].filter(t=>!TAGS.includes(t))];
-  const sel=order.filter(t=>formTags.has(t));
+  const sel=sortTags([...formTags]);
   $('rateRows').innerHTML=sel.map(rateRowHtml).join('');
   $('rateHint').hidden=!sel.length;
 }
@@ -743,8 +757,11 @@ function syncRate(row){
   formRates[t]={v, u:row.querySelector('.r-u').value, note:row.querySelector('.r-note').value.trim(), free:row.querySelector('.r-free').getAttribute('aria-pressed')==='true'};
 }
 function drawTagPick(){
-  const extra=[...formTags].filter(t=>!TAGS.includes(t));
+  const extra=[...formTags].filter(t=>!TAGS.includes(t) && !isSubTag(t));
   $('tagPick').innerHTML=[...TAGS,...extra].map(t=>`<button type="button" class="chip" data-tag="${esc(t)}" aria-pressed="${formTags.has(t)}">${esc(t)}</button>`).join('');
+  // 상위 분야(영화)를 골랐거나 세부가 하나라도 있으면 세부 고르기를 보여줘요
+  $('subPick').innerHTML=Object.entries(SUBTAGS).filter(([p,subs])=>formTags.has(p) || subs.some(x=>formTags.has(p+SUBSEP+x))).map(([p,subs])=>
+    `<div class="sub-row"><span class="lbl">${esc(p)} 세부 (선택)</span>${subs.map(x=>{ const t=p+SUBSEP+x; return `<button type="button" class="chip" data-tag="${esc(t)}" aria-pressed="${formTags.has(t)}">${esc(x)}</button>`; }).join('')}</div>`).join('');
 }
 function drawSwatches(){
   $('swatches').innerHTML=COLORS.map(([c,n])=>`<button type="button" class="swatch" data-color="${c}" style="background:${c}" aria-label="${n}" title="${n}" aria-pressed="${formColor===c}"></button>`).join('');
@@ -824,7 +841,9 @@ $('iFee').addEventListener('input', ev=>{ const n=num(ev.target.value); ev.targe
 $('tierRows').addEventListener('input', ev=>{ if(!ev.target.matches('.t-min,.t-limit')) return; const n=num(ev.target.value); ev.target.value = n==null ? '' : commas(n); });
 $('tierRows').addEventListener('click', ev=>{ const b=ev.target.closest('.t-del'); if(b) b.closest('.tier-row').remove(); });
 $('addTierBtn').addEventListener('click', ()=>{ $('tierRows').insertAdjacentHTML('beforeend', tierRowHtml()); const rows=$('tierRows').querySelectorAll('.t-min'); rows[rows.length-1].focus(); });
-$('tagPick').addEventListener('click', ev=>{ const b=ev.target.closest('[data-tag]'); if(!b) return; const t=b.dataset.tag; formTags.has(t)?formTags.delete(t):formTags.add(t); b.setAttribute('aria-pressed', String(formTags.has(t))); drawRateRows(); });
+function onTagPick(ev){ const b=ev.target.closest('[data-tag]'); if(!b) return; const t=b.dataset.tag; formTags.has(t)?formTags.delete(t):formTags.add(t); drawTagPick(); drawRateRows(); }
+$('tagPick').addEventListener('click', onTagPick);
+$('subPick').addEventListener('click', onTagPick);
 $('rateRows').addEventListener('input', ev=>{ const row=ev.target.closest('.rate-row'); if(row) syncRate(row); });
 $('rateRows').addEventListener('click', ev=>{
   const b=ev.target.closest('.r-free'); if(!b) return;
