@@ -98,6 +98,11 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .field textarea{min-height:76px;resize:vertical;line-height:1.55;}
 .field .hint{font-size:11px;color:var(--ink-soft);}
 .tag-pick{display:flex;flex-wrap:wrap;gap:6px;}
+.rates-edit{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+.rates-edit:empty{display:none;}
+.rate-row{display:grid;grid-template-columns:92px 90px 132px 1fr;gap:8px;align-items:center;}
+.rate-row .rtag{font-size:12px;font-weight:700;color:var(--accent);background:rgba(31,59,115,0.08);border-radius:999px;padding:6px 10px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rate-row input,.rate-row select{min-width:0;}
 .swatches{display:flex;gap:8px;flex-wrap:wrap;}
 .swatch{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line-strong);cursor:pointer;padding:0;}
 .swatch[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink);}
@@ -151,6 +156,10 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .t-del:hover{color:var(--err);}
 .btn.small{padding:6px 12px;font-size:13px;align-self:flex-start;}
 .tag{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(31,59,115,0.08);color:var(--accent);}
+.tag b{font-weight:700;margin-left:3px;}
+.tag i{font-style:normal;color:var(--ink-soft);margin-left:3px;}
+.tags.rated{flex-direction:column;align-items:flex-start;gap:4px;}
+.tags.rated .tag{font-size:12px;padding:3px 9px;}
 .benefits{margin:0;padding-left:16px;font-size:13px;line-height:1.6;}
 .benefits li{overflow-wrap:anywhere;}
 .memo{font-size:12px;color:var(--ink-soft);line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;border-top:1px dashed var(--line);padding-top:8px;}
@@ -191,6 +200,8 @@ table.tbl{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
 .toast button{flex-shrink:0;border:0;background:transparent;color:#F2C66D;font-weight:700;cursor:pointer;padding:4px 8px;border-radius:999px;}
 
 @media (max-width:640px){
+  .rate-row{grid-template-columns:84px 1fr 1fr;}
+  .rate-row .r-note{grid-column:1/-1;}
   body{padding-top:16px;}
   .top{align-items:stretch;}
   .stats{width:100%;}
@@ -272,6 +283,8 @@ table.tbl{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
       <div class="field" style="margin-bottom:12px;">
         <span class="label">혜택 분야 (여러 개 고를 수 있어요)</span>
         <div class="tag-pick" id="tagPick"></div>
+        <div class="rates-edit" id="rateRows"></div>
+        <span class="hint" id="rateHint" hidden>분야마다 혜택을 숫자와 단위로 적을 수 있어요. 비워둬도 돼요. 예: 카페 50 % 할인 · 스타벅스</span>
       </div>
       <div class="grid2">
         <div class="field"><label for="iBenefits">혜택</label><textarea id="iBenefits" placeholder="한 줄에 하나씩&#10;예: 주유 리터당 60원 할인&#10;예: 스타벅스 50% 할인 (월 1회)"></textarea></div>
@@ -337,7 +350,7 @@ const $ = id => document.getElementById(id);
 const ISSUERS = ['신한','삼성','현대','KB국민','롯데','하나','우리','BC','NH농협','IBK기업','씨티','카카오뱅크','토스뱅크','SC제일','수협','광주','전북','제주','우체국'];
 const NETWORKS = ['VISA','Mastercard','JCB','AMEX','UnionPay','국내전용'];
 const GRADES = ['일반','Gold','Platinum','Signature','World','World Elite','Infinite','Ultimate','Black','Diamond'];
-const TAGS = ['쇼핑','온라인','주유','택시','통신','카페','외식','편의점','마트','해외','면세점','항공','마일리지','포인트·캐시백','공과금','구독'];
+const TAGS = ['쇼핑','온라인','간편결제','주유','택시','통신','카페','외식','편의점','마트','해외','면세점','항공','마일리지','포인트·캐시백','공과금','구독'];
 const COLORS = [['#1F2A44','남색'],['#1B1B1F','검정'],['#7E858F','실버'],['#A9874F','골드'],['#B23A2E','빨강'],['#1E6F5C','초록'],['#2F5DA8','파랑'],['#5B4B8A','보라'],['#C2577A','분홍']];
 
 /* ---------- 작은 도구 ---------- */
@@ -380,12 +393,35 @@ function spendShort(c){
 }
 function tierText(t){ return `${minLabel(t.min)} → 한도 ${t.limit!=null?won(t.limit):'—'}${t.note?` (${t.note})`:''}`; }
 // 예전 '항공·마일리지'는 '항공'과 '마일리지' 두 개로 나눠요
+function sortTags(list){ const r=t=>{ const i=TAGS.indexOf(t); return i<0?999:i; }; return [...list].sort((a,b)=>r(a)-r(b)); }
 function normTags(tags){
   const out=[]; (Array.isArray(tags)?tags:[]).forEach(t=>{ (t==='항공·마일리지' ? ['항공','마일리지'] : [t]).forEach(x=>{ if(x && !out.includes(x)) out.push(x); }); });
-  return out;
+  return sortTags(out);
 }
 // 카드 이미지는 이 페이지가 만든 data:image 주소만 써요
 function safeImg(u){ return (typeof u==='string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(u)) ? u : ''; }
+// 분야별 혜택: rates = { '카페': {v:50, u:'pct_off', note:'스타벅스'}, ... }
+const UNITS = [
+  ['pct_off','% 할인',   v=>`${v}% 할인`],
+  ['pct_pt', '% 적립',   v=>`${v}% 적립`],
+  ['pct_cb', '% 캐시백', v=>`${v}% 캐시백`],
+  ['pt',     'P 적립',   v=>`${Number(v).toLocaleString('ko-KR')}P 적립`],
+  ['won_off','원 할인',  v=>`${Number(v).toLocaleString('ko-KR')}원 할인`],
+  ['won_l',  '원/L 할인', v=>`리터당 ${Number(v).toLocaleString('ko-KR')}원 할인`],
+  ['mile',   '마일/1천원', v=>`1천원당 ${v}마일`],
+];
+const UNIT_FMT = Object.fromEntries(UNITS.map(([k,,f])=>[k,f]));
+function defaultUnit(tag){ return tag==='주유' ? 'won_l' : tag==='마일리지'||tag==='항공' ? 'mile' : tag==='포인트·캐시백' ? 'pct_pt' : 'pct_off'; }
+function rateOf(c, tag){ const r=c && c.rates && c.rates[tag]; return r && (r.v!=null || r.note) ? r : null; }
+function rateText(r){
+  if(!r) return '';
+  const val = r.v!=null && UNIT_FMT[r.u] ? UNIT_FMT[r.u](r.v) : '';
+  return val;
+}
+function tagChipHtml(c, t){
+  const r=rateOf(c,t), val=rateText(r);
+  return `<span class="tag">${esc(t)}${val?`<b>${esc(val)}</b>`:''}${r&&r.note?`<i>· ${esc(r.note)}</i>`:''}</span>`;
+}
 function benefitLines(c){ return String(c.benefits||'').split('\n').map(x=>x.trim()).filter(Boolean); }
 
 /* ---------- 상태 ---------- */
@@ -499,7 +535,7 @@ function removeCard(id){
 }
 
 /* ---------- 거르기·정렬 ---------- */
-function haystack(c){ return [c.name,c.issuer,c.grade,normNet(c.network),c.benefits,c.memo,(c.tags||[]).join(' '),tiersOf(c).map(t=>t.note||'').join(' ')].join(' ').toLowerCase(); }
+function haystack(c){ return [c.name,c.issuer,c.grade,normNet(c.network),c.benefits,c.memo,(c.tags||[]).join(' '),tiersOf(c).map(t=>t.note||'').join(' '),Object.values(c.rates||{}).map(r=>r&&r.note||'').join(' ')].join(' ').toLowerCase(); }
 function visibleCards(){
   const q=filt.q.trim().toLowerCase();
   let list=(cards||[]).filter(c=>
@@ -572,7 +608,7 @@ function tileHtml(c){
       ${img ? `<div class="ctitle"><b>${esc(c.name||'')}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>` : ''}
       <div class="kv"><div><div class="k">연회비</div><div class="v">${esc(won(c.annualFee))}</div></div><div><div class="k">전월 실적</div><div class="v">${esc(spendShort(c))}</div></div></div>
       ${tierTableHtml(c)}
-      ${(c.tags||[]).length?`<div class="tags">${c.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
+      ${(c.tags||[]).length?`<div class="tags${c.tags.some(t=>rateOf(c,t))?' rated':''}">${c.tags.map(t=>tagChipHtml(c,t)).join('')}</div>`:''}
       ${shown.length?`<ul class="benefits">${shown.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
       ${lines.length>3?`<button type="button" class="more" data-more="${esc(c.id)}">${open?'접기':`혜택 ${lines.length-3}개 더 보기`}</button>`:''}
       ${c.memo?`<div class="memo">${esc(c.memo)}</div>`:''}
@@ -601,7 +637,7 @@ function tableHtml(list){
     <td><div class="cname">${safeImg(c.image) ? `<img class="thumb" src="${safeImg(c.image)}" alt="">` : `<span class="dotc" style="background:${esc(colorOf(c))}"></span>`}${esc(c.name||'')}</div></td>
     <td>${esc(c.issuer||'')}</td><td>${esc(normNet(c.network))}</td><td>${esc(c.grade||'')}</td>
     <td class="num">${esc(won(c.annualFee))}</td><td class="pre">${esc(tiersOf(c).map(tierText).join('\n')||'—')}</td>
-    <td>${(c.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join(' ')}</td>
+    <td><div class="tags${(c.tags||[]).some(t=>rateOf(c,t))?' rated':''}">${(c.tags||[]).map(t=>tagChipHtml(c,t)).join('')}</div></td>
     <td class="pre">${esc(benefitLines(c).join('\n'))}</td><td class="pre">${esc(c.memo||'')}</td>
     <td><button type="button" class="edit" data-edit="${esc(c.id)}">수정</button></td>
   </tr>`).join('')}</tbody></table></div>`;
@@ -662,6 +698,27 @@ $('imgRotate').addEventListener('click', async ()=>{
   }catch(e){ console.error(e); }
 });
 $('imgRemove').addEventListener('click', ()=>{ formImage=''; imgSource=null; imgTurns=0; drawImgPrev(); });
+let formRates={};
+function rateRowHtml(t){
+  const r=formRates[t]||{}, u=r.u||defaultUnit(t);
+  return `<div class="rate-row" data-tag="${esc(t)}">
+    <span class="rtag" title="${esc(t)}">${esc(t)}</span>
+    <input class="r-v" inputmode="decimal" placeholder="숫자" value="${r.v!=null?esc(r.v):''}" aria-label="${esc(t)} 혜택 숫자">
+    <select class="r-u" aria-label="${esc(t)} 혜택 단위">${UNITS.map(([k,l])=>`<option value="${k}" ${k===u?'selected':''}>${l}</option>`).join('')}</select>
+    <input class="r-note" maxlength="40" placeholder="조건 (선택) 예: 스타벅스, 월 4회" value="${esc(r.note||'')}" aria-label="${esc(t)} 혜택 조건">
+  </div>`;
+}
+function drawRateRows(){
+  const order=[...TAGS, ...[...formTags].filter(t=>!TAGS.includes(t))];
+  const sel=order.filter(t=>formTags.has(t));
+  $('rateRows').innerHTML=sel.map(rateRowHtml).join('');
+  $('rateHint').hidden=!sel.length;
+}
+function syncRate(row){
+  const t=row.dataset.tag, raw=row.querySelector('.r-v').value.replace(/[^0-9.]/g,'');
+  const v = raw==='' || isNaN(parseFloat(raw)) ? null : parseFloat(raw);
+  formRates[t]={v, u:row.querySelector('.r-u').value, note:row.querySelector('.r-note').value.trim()};
+}
 function drawTagPick(){
   const extra=[...formTags].filter(t=>!TAGS.includes(t));
   $('tagPick').innerHTML=[...TAGS,...extra].map(t=>`<button type="button" class="chip" data-tag="${esc(t)}" aria-pressed="${formTags.has(t)}">${esc(t)}</button>`).join('');
@@ -699,7 +756,8 @@ function openForm(c){
   $('iFee').value=c&&c.annualFee!=null?commas(c.annualFee):''; drawTierRows(c ? tiersOf(c) : []);
   $('iBenefits').value=c?.benefits||''; $('iMemo').value=c?.memo||'';
   formTags=new Set(normTags(c?.tags)); formColor=c?.color||''; resetImg(c);
-  drawTagPick(); drawSwatches();
+  formRates=JSON.parse(JSON.stringify((c&&c.rates)||{}));
+  drawTagPick(); drawRateRows(); drawSwatches();
   $('form').hidden=false; $('addBtn').hidden=true;
   $('form').scrollIntoView({behavior:'smooth', block:'start'});
   $('iName').focus({preventScroll:true});
@@ -719,7 +777,7 @@ $('form').addEventListener('submit', ev=>{
     id: old ? old.id : uid(),
     name, issuer:$('iIssuer').value.trim(), network:normNet($('iNet').value), grade:$('iGrade').value.trim(),
     annualFee:num($('iFee').value), tiers:tr.tiers, prevSpend:tr.tiers.length ? tr.tiers[0].min : null,
-    tags:[...formTags], benefits:$('iBenefits').value.replace(/\s+$/,''), memo:$('iMemo').value.trim(),
+    tags:sortTags([...formTags]), rates:Object.fromEntries([...formTags].map(t=>[t,formRates[t]]).filter(([,r])=>r && (r.v!=null || r.note))), benefits:$('iBenefits').value.replace(/\s+$/,''), memo:$('iMemo').value.trim(),
     color: formColor || (old&&old.color) || '',
     image: formImage || '',
     createdAt: old ? (old.createdAt||Date.now()) : Date.now(), updatedAt: Date.now(),
@@ -743,7 +801,9 @@ $('iFee').addEventListener('input', ev=>{ const n=num(ev.target.value); ev.targe
 $('tierRows').addEventListener('input', ev=>{ if(!ev.target.matches('.t-min,.t-limit')) return; const n=num(ev.target.value); ev.target.value = n==null ? '' : commas(n); });
 $('tierRows').addEventListener('click', ev=>{ const b=ev.target.closest('.t-del'); if(b) b.closest('.tier-row').remove(); });
 $('addTierBtn').addEventListener('click', ()=>{ $('tierRows').insertAdjacentHTML('beforeend', tierRowHtml()); const rows=$('tierRows').querySelectorAll('.t-min'); rows[rows.length-1].focus(); });
-$('tagPick').addEventListener('click', ev=>{ const b=ev.target.closest('[data-tag]'); if(!b) return; const t=b.dataset.tag; formTags.has(t)?formTags.delete(t):formTags.add(t); b.setAttribute('aria-pressed', String(formTags.has(t))); });
+$('tagPick').addEventListener('click', ev=>{ const b=ev.target.closest('[data-tag]'); if(!b) return; const t=b.dataset.tag; formTags.has(t)?formTags.delete(t):formTags.add(t); b.setAttribute('aria-pressed', String(formTags.has(t))); drawRateRows(); });
+$('rateRows').addEventListener('input', ev=>{ const row=ev.target.closest('.rate-row'); if(row) syncRate(row); });
+$('rateRows').addEventListener('change', ev=>{ const row=ev.target.closest('.rate-row'); if(row) syncRate(row); });
 $('swatches').addEventListener('click', ev=>{ const b=ev.target.closest('[data-color]'); if(!b) return; formColor = formColor===b.dataset.color ? '' : b.dataset.color; drawSwatches(); });
 
 /* ---------- 목록 동작 ---------- */
