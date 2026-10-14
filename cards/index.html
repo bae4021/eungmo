@@ -364,7 +364,7 @@ const NETWORKS = ['VISA','Mastercard','JCB','AMEX','UnionPay','국내전용'];
 const GRADES = ['일반','Gold','Platinum','Signature','World','World Elite','Infinite','Ultimate','Black','Diamond'];
 const TAGS = ['국내 가맹점','쇼핑','온라인','간편결제','주유','택시','통신','카페','외식','영화','편의점','마트','백화점','해외','면세점','항공','마일리지','포인트·캐시백','공과금','구독'];
 // 세부로 나눌 수 있는 분야: '영화'만 고르면 영화 전체, 세부를 고르면 '영화 · CGV'처럼 따로 저장돼요
-const SUBTAGS = {'영화':['CGV','롯데시네마','메가박스']};
+const SUBTAGS = {'간편결제':['네이버페이','카카오페이','페이코','토스페이','KB페이'], '영화':['CGV','롯데시네마','메가박스']};
 const SUBSEP = ' · ';
 function parentOf(t){ const k=String(t).indexOf(SUBSEP); return k<0 ? t : t.slice(0,k); }
 function subName(t){ const k=String(t).indexOf(SUBSEP); return k<0 ? t : t.slice(k+SUBSEP.length); }
