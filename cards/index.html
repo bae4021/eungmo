@@ -1,959 +1,1252 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>카드 지갑</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>연차관리대장</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;700;800;900&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-/* 카드 지갑: 따뜻한 종이색 바탕 위에 실제 카드처럼 보이는 타일 */
-:root{
-  --bg:#F2F0EB;
-  --surface:#FFFFFF;
-  --surface-2:#F8F7F3;
-  --ink:#1C1E22;
-  --ink-soft:#6B6F76;
-  --line:rgba(28,30,34,0.12);
-  --line-strong:rgba(28,30,34,0.24);
-  --accent:#1F3B73;
-  --ok:#1E7F5C;
-  --warn:#9A6A22;
-  --err:#B23A2E;
-  --mono:'IBM Plex Mono',monospace;
-  color-scheme:light;
-}
-*{box-sizing:border-box;}
-[hidden]{display:none!important;}
-html,body{margin:0;}
-body{background:var(--bg);color:var(--ink);font-family:'Noto Sans KR','Malgun Gothic',sans-serif;font-size:14px;
-  padding:24px 16px calc(64px + env(safe-area-inset-bottom,0px));}
-.wrap{max-width:1120px;margin:0 auto;}
-button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit;}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  :root{
+    --paper:#15171B;
+    --paper-2:#1D2025;
+    --ink:#ECECE4;
+    --ink-soft:#96968D;
+    --line:#2B2E33;
+    --line-strong:#40444B;
+    --stamp-red:#E85D51;
+    --stamp-red-dim:#B9645C;
+    --stamp-green:#4CBA84;
+    --gold:#E0AC4E;
+    --white:#1A1D22;
+    --danger:#E85D51;
+    --sun:#FF5C5C;
+    --sat:#4C8DFF;
+    --radius:3px;
+    --serif:'Gothic A1', 'Noto Sans KR', sans-serif;
+    --sans:'Noto Sans KR', sans-serif;
+    --mono:'JetBrains Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);}
+  .app{max-width:1180px;margin:0 auto;padding:28px 24px 80px;}
+  .tool-nav{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;}
+  .tool-nav a{font-size:12px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:6px 13px;border-radius:999px;border:1px solid var(--line-strong);}
+  .tool-nav a:hover{color:var(--ink);background:var(--paper-2);}
+  .tool-nav a[aria-current="page"]{color:var(--paper);background:var(--ink);border-color:var(--ink);}
+  .tool-nav a:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
 
-/* 도구 전환 */
-.tool-nav{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px;}
-.tool-nav a{font-size:12px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:6px 13px;border-radius:999px;border:1px solid var(--line-strong);}
-.tool-nav a:hover{color:var(--ink);background:var(--surface);}
-.tool-nav a[aria-current="page"]{color:#fff;background:var(--ink);border-color:var(--ink);}
+  /* ---------- Header ---------- */
+  .masthead{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:3px double var(--line-strong);padding-bottom:14px;margin-bottom:22px;flex-wrap:wrap;gap:14px;}
+  .masthead h1{font-family:var(--serif);font-weight:700;font-size:26px;margin:0;letter-spacing:-0.5px;}
+  .masthead .sub{font-size:12px;color:var(--ink-soft);margin-top:4px;letter-spacing:0.4px;}
+  .save-status{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;margin-top:9px;padding:4px 11px 4px 9px;
+    border:1px solid var(--line-strong);border-radius:999px;background:var(--paper-2);letter-spacing:0.2px;max-width:100%;}
+  .save-status::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0;}
+  .save-status:empty{display:none;}
+  .save-status.ok{color:var(--stamp-green);}
+  .save-status.ok::before{box-shadow:0 0 0 3px rgba(76,186,132,0.22);}
+  .save-status.warn{color:var(--gold);}
+  .save-status.err{color:var(--stamp-red);border-color:var(--stamp-red-dim);}
+  .acct-line{font-size:11px;color:var(--ink-soft);margin-top:7px;}
+  .year-picker{display:flex;align-items:center;gap:8px;font-family:var(--mono);}
+  .year-picker button{width:26px;height:26px;border:1px solid var(--line-strong);background:var(--white);color:var(--ink);cursor:pointer;border-radius:var(--radius);font-family:var(--mono);}
+  .year-picker button:hover{background:var(--paper-2);}
+  .year-picker select{font-family:var(--mono);font-size:15px;font-weight:600;border:1px solid var(--line-strong);background:var(--white);color:var(--ink);padding:4px 8px;border-radius:var(--radius);}
+  .year-picker select option{background:var(--white);color:var(--ink);}
 
-/* 머리 */
-.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--line-strong);margin-bottom:16px;}
-.top h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-0.5px;}
-.top .sub{margin:4px 0 0;font-size:13px;color:var(--ink-soft);}
-.sync{display:inline-flex;align-items:center;gap:7px;margin-top:10px;font-size:11.5px;padding:4px 11px 4px 9px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink-soft);max-width:100%;}
-.sync::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0;}
-.sync.ok{color:var(--ok);}
-.sync.ok::before{box-shadow:0 0 0 3px rgba(30,127,92,0.18);}
-.sync.warn{color:var(--warn);}
-.sync.err{color:var(--err);border-color:rgba(178,58,46,0.35);}
-.stats{display:flex;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;}
-.stat{background:var(--surface);padding:10px 16px;min-width:96px;}
-.stat .k{font-size:11px;color:var(--ink-soft);}
-.stat .v{font-family:var(--mono);font-size:18px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums;white-space:nowrap;}
-.stat .v small{font-family:'Noto Sans KR',sans-serif;font-size:11px;font-weight:500;color:var(--ink-soft);margin-left:2px;}
+  /* ---------- Layout ---------- */
+  .layout{display:grid;grid-template-columns:120px 1fr;gap:0;align-items:start;}
+  .tabs{display:flex;flex-direction:column;gap:6px;padding-top:6px;}
+  .tab{position:relative;background:var(--paper-2);border:1px solid var(--line-strong);border-right:none;padding:12px 6px;text-align:center;font-family:var(--serif);font-size:14px;font-weight:700;cursor:pointer;color:var(--ink-soft);letter-spacing:1px;writing-mode:vertical-rl;text-orientation:upright;min-height:88px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius) 0 0 var(--radius);}
+  .tab.active{background:var(--paper);color:var(--ink);border-color:var(--line-strong);box-shadow:2px 0 0 var(--paper) inset;position:relative;z-index:2;}
+  .tab.active::after{content:'';position:absolute;right:-1px;top:0;bottom:0;width:1px;background:var(--paper);}
+  .tab .del{writing-mode:horizontal-tb;position:absolute;top:3px;right:3px;font-size:10px;color:var(--stamp-red-dim);cursor:pointer;padding:2px;line-height:1;display:none;}
+  .tab:hover .del{display:block;}
+  .tab .del:hover{color:var(--stamp-red);}
+  .tab-add{background:transparent;border:1px dashed var(--line-strong);color:var(--ink-soft);padding:10px 6px;text-align:center;cursor:pointer;font-size:18px;border-radius:var(--radius) 0 0 var(--radius);border-right:none;}
+  .tab-add:hover{background:var(--paper-2);}
+  .tab-name-input{writing-mode:horizontal-tb;width:70px;font-family:var(--sans);font-size:12px;border:1px solid var(--gold);text-align:center;}
 
-/* 로그인 */
-.auth{max-width:440px;margin:40px auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:30px 22px;text-align:center;}
-.auth h2{margin:0 0 8px;font-size:19px;}
-.auth p{margin:0 0 18px;font-size:13px;color:var(--ink-soft);line-height:1.7;}
-.auth-msg{margin:14px 0 0!important;color:var(--err)!important;font-size:12px!important;min-height:1em;}
-.auth-warn{border:1px solid rgba(178,58,46,0.3);background:rgba(178,58,46,0.05);border-radius:8px;padding:10px 12px;font-size:12px!important;color:var(--ink)!important;text-align:left;}
+  .book{background:var(--paper);border:1px solid var(--line-strong);border-radius:0 var(--radius) var(--radius) var(--radius);padding:22px 26px;position:relative;}
 
-/* 버튼 */
-.btn{border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer;}
-.btn:hover{background:var(--surface-2);}
-.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff;}
-.btn.primary:hover{background:#000;}
-.btn.danger{color:var(--err);border-color:rgba(178,58,46,0.35);}
-.btn.ghost{border-color:transparent;background:transparent;color:var(--ink-soft);}
-.link-btn{border:0;background:transparent;font:inherit;color:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0;}
+  /* ---------- Summary row ---------- */
+  .summary{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:22px;align-items:center;padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid var(--line);}
+  .stamp{width:104px;height:104px;border-radius:50%;border:3px solid var(--stamp-red);color:var(--stamp-red);display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-8deg);font-family:var(--mono);flex-shrink:0;position:relative;}
+  .stamp::before{content:'';position:absolute;inset:6px;border:1px solid var(--stamp-red-dim);border-radius:50%;}
+  .stamp .lbl{font-size:9px;letter-spacing:2px;font-family:var(--sans);font-weight:700;}
+  .stamp .num{font-size:30px;font-weight:700;line-height:1.1;}
+  .stamp .unit{font-size:10px;}
+  .stamp.neg{border-color:var(--ink-soft);color:var(--ink-soft);}
+  .stamp.neg::before{border-color:var(--line-strong);}
 
-/* 도구 막대 */
-.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
-.toolbar .grow{flex:1;min-width:180px;}
-.toolbar input[type=search],.toolbar select{height:38px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);padding:0 10px;}
-.toolbar input[type=search]{width:100%;}
-.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;background:var(--surface);}
-.seg button{border:0;background:transparent;padding:0 12px;height:36px;cursor:pointer;color:var(--ink-soft);font-weight:600;}
-.seg button[aria-pressed="true"]{background:var(--ink);color:#fff;}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px;}
-.chips:empty{display:none;}
-.chips .lbl{font-size:11px;color:var(--ink-soft);align-self:center;margin-right:2px;min-width:40px;}
-.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:12px;color:var(--ink-soft);cursor:pointer;}
-.chip b{font-family:var(--mono);font-weight:600;margin-left:4px;}
-.chip:hover{color:var(--ink);}
-.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
-.result-note{font-size:12px;color:var(--ink-soft);margin:6px 2px 12px;}
-.result-note .link-btn{margin-left:6px;}
+  .stat{border-left:1px solid var(--line);padding-left:18px;}
+  .stat .k{font-size:11px;color:var(--ink-soft);letter-spacing:1px;margin-bottom:6px;}
+  .stat .v{font-family:var(--mono);font-size:22px;font-weight:600;}
+  .stat .v small{font-size:12px;font-weight:400;color:var(--ink-soft);}
 
-/* 입력 */
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin:4px 0 18px;}
-.panel h3{margin:0 0 14px;font-size:15px;}
-.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:12px;margin-bottom:12px;}
-.field{display:flex;flex-direction:column;gap:5px;min-width:0;}
-.field>label,.field>.label{font-size:11.5px;font-weight:700;color:var(--ink-soft);}
-.field input,.field select,.field textarea{width:100%;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);padding:9px 10px;}
-.field textarea{min-height:76px;resize:vertical;line-height:1.55;}
-.field .hint{font-size:11px;color:var(--ink-soft);}
-.tag-pick{display:flex;flex-wrap:wrap;gap:6px;}
-.sub-pick{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
-.sub-pick:empty{display:none;}
-.sub-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);}
-.sub-row .lbl{font-size:11.5px;font-weight:700;color:var(--ink-soft);margin-right:4px;}
-.rates-edit{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
-.rates-edit:empty{display:none;}
-.rate-row{display:grid;grid-template-columns:92px 90px 132px 1fr 92px;gap:8px;align-items:center;}
-.r-free{height:38px;border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;white-space:nowrap;}
-.r-free[aria-pressed="true"]{background:rgba(30,127,92,0.12);border-color:rgba(30,127,92,0.45);color:var(--ok);}
-.rate-head{font-size:12px;font-weight:700;color:var(--accent);padding:2px 2px 0;}
-.rate-row.sub{position:relative;padding-left:20px;}
-.rate-row.sub::before{content:'└';position:absolute;left:5px;top:9px;color:var(--ink-soft);font-size:13px;}
-.rate-row.sub .rtag{background:var(--surface);border:1px solid rgba(31,59,115,0.2);}
-.rate-row .rtag{font-size:12px;font-weight:700;color:var(--accent);background:rgba(31,59,115,0.08);border-radius:999px;padding:6px 10px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.rate-row input,.rate-row select{min-width:0;}
-.swatches{display:flex;gap:8px;flex-wrap:wrap;}
-.swatch{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line-strong);cursor:pointer;padding:0;}
-.swatch[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink);}
-.form-actions{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap;margin-top:6px;}
-.form-actions .spacer{flex:1;}
+  /* ---------- Sections ---------- */
+  h2.sec-title{font-family:var(--serif);font-size:15px;font-weight:700;margin:26px 0 12px;display:flex;align-items:center;gap:8px;}
+  h2.sec-title::before{content:'';width:14px;height:1px;background:var(--line-strong);}
 
-/* 카드 타일 */
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:14px;}
-.tile{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;}
-.face{aspect-ratio:1.586/1;margin:10px 10px 0;border-radius:12px;padding:14px 16px;color:#fff;position:relative;display:flex;flex-direction:column;justify-content:space-between;
-  background:var(--c);
-  background:linear-gradient(135deg,var(--c) 0%,color-mix(in srgb,var(--c) 70%,#000) 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.08);overflow:hidden;}
-.face::after{content:'';position:absolute;right:-30%;top:-40%;width:80%;height:120%;background:radial-gradient(closest-side,rgba(255,255,255,0.14),transparent);pointer-events:none;}
-.face .row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;position:relative;z-index:1;}
-.face .issuer{font-size:13px;font-weight:700;opacity:0.95;}
-.face .grade{font-size:10.5px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;opacity:0.85;text-align:right;}
-.face .chipimg{width:34px;height:25px;border-radius:5px;background:linear-gradient(135deg,#E9D49A,#B8964F);box-shadow:inset 0 0 0 1px rgba(0,0,0,0.15);position:relative;z-index:1;}
-.face .name{font-size:16px;font-weight:800;line-height:1.3;overflow-wrap:anywhere;}
-.face.photo{padding:0;background:var(--surface-2);box-shadow:0 1px 4px rgba(0,0,0,0.14);}
-.face.photo::after{display:none;}
-.face.photo img{width:100%;height:100%;object-fit:cover;display:block;}
-.ctitle b{display:block;font-size:15px;line-height:1.35;overflow-wrap:anywhere;}
-.ctitle span{font-size:12px;color:var(--ink-soft);}
-.img-pick{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
-.img-prev{width:170px;aspect-ratio:1.586/1;border-radius:10px;border:1px dashed var(--line-strong);background:var(--surface-2) center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-soft);flex-shrink:0;}
-.img-prev.has{border-style:solid;border-color:var(--line);}
-.img-btns{display:flex;gap:6px;flex-wrap:wrap;}
-.img-err{font-size:12px;color:var(--err);}
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;}
-.face .net{font-size:14px;font-weight:800;font-style:italic;letter-spacing:0.02em;white-space:nowrap;opacity:0.95;}
-.body{padding:12px 16px 14px;display:flex;flex-direction:column;gap:10px;flex:1;}
-.kv{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border-radius:8px;overflow:hidden;}
-.kv div{background:var(--surface-2);padding:8px 10px;}
-.kv .k{font-size:10.5px;color:var(--ink-soft);}
-.kv .v{font-family:var(--mono);font-size:14px;font-weight:600;margin-top:1px;font-variant-numeric:tabular-nums;}
-.tags{display:flex;flex-wrap:wrap;gap:5px;}
-.tier-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
-.tier-tbl th{font-size:10.5px;font-weight:700;color:var(--ink-soft);text-align:left;padding:0 0 4px;border-bottom:1px solid var(--line);}
-.tier-tbl th:last-child,.tier-tbl td:last-child{text-align:right;}
-.tier-tbl td{padding:5px 0;border-bottom:1px dashed var(--line);font-variant-numeric:tabular-nums;vertical-align:top;}
-.tier-tbl tr:last-child td{border-bottom:0;}
-.tier-tbl .amt{font-family:var(--mono);font-weight:600;}
-.tier-tbl .tnote{display:block;font-size:11px;color:var(--ink-soft);font-family:'Noto Sans KR',sans-serif;font-weight:400;}
-.tiers-edit{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;}
-.tiers-edit:empty{display:none;}
-.tier-row{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;gap:8px;align-items:center;}
-.tin{display:flex;align-items:center;gap:6px;min-width:0;}
-.tin input{flex:1;min-width:0;}
-.tin span{font-size:12px;color:var(--ink-soft);white-space:nowrap;}
-.t-del{border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;width:38px;height:38px;cursor:pointer;color:var(--ink-soft);}
-.t-del:hover{color:var(--err);}
-.btn.small{padding:6px 12px;font-size:13px;align-self:flex-start;}
-.tag{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(31,59,115,0.08);color:var(--accent);}
-.tag b{font-weight:700;margin-left:3px;}
-.tag i{font-style:normal;color:var(--ink-soft);margin-left:3px;}
-.tags.rated{flex-direction:column;align-items:flex-start;gap:4px;}
-.tags.rated .tag{font-size:12px;padding:3px 9px;}
-/* 세부가 있는 분야: 상위 분야 안에 세부를 묶어서 보여줘요 */
-.tag.fam{display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px;border-radius:10px;padding:5px 10px 6px;}
-.tags.rated .tag.fam{padding:5px 10px 6px;}
-.tag.fam .fname{font-weight:600;}
-.tag.fam .subs{display:flex;flex-wrap:wrap;gap:4px;}
-.tag.fam .sub{font-size:11px;background:var(--surface);border:1px solid rgba(31,59,115,0.16);border-radius:999px;padding:1px 8px;color:var(--accent);}
-.tag.fam .sub b{font-weight:700;margin-left:3px;}
-.tag.fam .sub i{font-style:normal;color:var(--ink-soft);margin-left:3px;}
-.tags.rated .tag.fam .subs{flex-direction:column;align-items:flex-start;}
-.tag em{font-style:normal;font-size:10px;font-weight:700;margin-left:6px;padding:1px 6px;border-radius:999px;background:rgba(30,127,92,0.13);color:var(--ok);}
-.bgroups{display:flex;flex-direction:column;gap:4px;}
-.bh{font-size:10.5px;font-weight:700;color:var(--ink-soft);margin-top:2px;}
-.bh.free{color:var(--ok);}
-.chip.free-chip[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);}
-.benefits{margin:0;padding-left:16px;font-size:13px;line-height:1.6;}
-.benefits li{overflow-wrap:anywhere;}
-.memo{font-size:12px;color:var(--ink-soft);line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;border-top:1px dashed var(--line);padding-top:8px;}
-.more{align-self:flex-start;border:0;background:transparent;color:var(--ink-soft);font-size:12px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0;}
-.tile-foot{display:flex;justify-content:flex-end;margin-top:auto;}
-.empty{text-align:center;padding:48px 16px;color:var(--ink-soft);background:var(--surface);border:1px dashed var(--line-strong);border-radius:14px;line-height:1.7;}
+  /* entry form */
+  .entry-form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;background:var(--paper-2);padding:14px;border:1px solid var(--line);border-radius:var(--radius);}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:11px;color:var(--ink-soft);}
+  .field input,.field select{font-family:var(--sans);font-size:13px;padding:6px 8px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);}
+  .field input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.85);cursor:pointer;}
+  input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.85);cursor:pointer;}
+  .field input[type=number]{width:64px;}
+  .field.memo input{width:180px;}
+  .btn{font-family:var(--sans);font-size:13px;font-weight:700;padding:7px 16px;border:1px solid var(--ink);background:var(--ink);color:var(--white);cursor:pointer;border-radius:var(--radius);}
+  .btn:hover{background:#3a4536;}
+  .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line-strong);font-weight:500;}
+  .btn.ghost:hover{background:var(--paper-2);}
+  .hm-row{display:flex;gap:4px;align-items:center;}
 
-/* 표 보기 */
-.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;}
-table.tbl{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
-.tbl th{text-align:left;font-size:11px;color:var(--ink-soft);font-weight:700;padding:10px;border-bottom:1px solid var(--line-strong);white-space:nowrap;background:var(--surface-2);position:sticky;top:0;}
-.tbl th button{border:0;background:transparent;font:inherit;color:inherit;cursor:pointer;padding:0;}
-.tbl th button[aria-sort]{color:var(--ink);}
-.tbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top;}
-.tbl td.num{font-family:var(--mono);text-align:right;white-space:nowrap;}
-.tbl th.num{text-align:right;}
-.tbl tr:hover td{background:var(--surface-2);}
-.tbl .cname{display:flex;align-items:center;gap:8px;font-weight:700;}
-.tbl .thumb{width:38px;height:24px;object-fit:cover;border-radius:4px;flex-shrink:0;box-shadow:0 0 0 1px var(--line);}
-.tbl .dotc{width:14px;height:10px;border-radius:2px;flex-shrink:0;}
-.tbl .pre{white-space:pre-wrap;max-width:280px;}
-.tbl .edit{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px;}
+  /* table */
+  table.ledger{width:100%;border-collapse:collapse;font-size:13px;}
+  table.ledger th{text-align:left;font-size:11px;color:var(--ink-soft);font-weight:600;border-bottom:1px solid var(--line-strong);padding:6px 8px;letter-spacing:0.5px;}
+  table.ledger td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  table.ledger tr.year-sep td{border-bottom:none;border-top:1px solid var(--line-strong);padding-top:14px;}
+  table.ledger tr.year-sep .yh{font-family:var(--mono);font-weight:700;color:var(--gold);font-size:13px;}
+  table.ledger td.num{font-family:var(--mono);text-align:right;}
+  table.ledger td.del{width:20px;text-align:center;color:var(--stamp-red-dim);cursor:pointer;font-size:13px;}
+  table.ledger td.del:hover{color:var(--stamp-red);}
+  table.ledger tr.subtotal td{font-family:var(--mono);color:var(--ink-soft);font-size:12px;border-bottom:1px dashed var(--line);}
+  .empty-row td{color:var(--ink-soft);font-style:italic;padding:14px 8px;}
+  .badge{font-size:10px;padding:1px 6px;border:1px solid var(--line-strong);border-radius:10px;color:var(--ink-soft);}
 
-/* 백업 */
-.backup{margin-top:26px;border-top:1px dashed var(--line-strong);padding-top:10px;}
-.backup summary{cursor:pointer;font-size:12px;color:var(--ink-soft);padding:4px;}
-.backup .panel{margin-top:8px;}
-.backup textarea{width:100%;min-height:64px;font-family:var(--mono);font-size:11px;border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px;margin-bottom:8px;}
-.bk-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
-.bk-row span{font-size:12px;color:var(--ok);}
-.bk-p{font-size:12px;color:var(--ink-soft);margin:0 0 8px;line-height:1.6;}
-.foot{text-align:center;font-size:11px;color:var(--ink-soft);margin-top:22px;}
+  /* calendar */
+  .cal-nav{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:10px;}
+  .cal-nav button{font-family:var(--mono);font-size:12px;border:1px solid var(--line-strong);background:var(--white);color:var(--ink);padding:5px 12px;cursor:pointer;border-radius:var(--radius);}
+  .cal-nav button:hover{background:var(--paper-2);}
+  .cal-nav .cal-label{font-family:var(--serif);font-size:16px;font-weight:700;min-width:110px;text-align:center;}
+  .cal-jump{display:flex;align-items:center;gap:3px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-left:6px;}
+  .cal-jump select{font-family:var(--mono);font-size:12px;border:1px solid var(--line-strong);background:var(--white);color:var(--ink);padding:4px 6px;border-radius:var(--radius);cursor:pointer;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+  .cal-wd{text-align:center;font-size:11px;color:var(--ink-soft);padding:4px 0;font-weight:600;}
+  .cal-wd.sun{color:var(--sun);font-weight:800;}
+  .cal-wd.sat{color:var(--sat);font-weight:800;}
+  .cal-grid.days{margin-bottom:18px;}
+  .cal-cell{min-height:78px;border:1px solid var(--line);background:var(--white);padding:5px 6px;cursor:pointer;position:relative;display:flex;flex-direction:column;gap:2px;border-radius:var(--radius);}
+  .cal-cell:hover{border-color:var(--gold);}
+  .cal-cell.other-month{background:var(--paper-2);opacity:0.4;}
+  .cal-cell.today{box-shadow:inset 0 0 0 2px var(--ink);}
+  .cal-cell.selected{box-shadow:inset 0 0 0 2px var(--gold);}
+  .cal-cell.sun{background:rgba(255,92,92,0.08);}
+  .cal-cell.sat{background:rgba(76,141,255,0.08);}
+  .cal-cell.holiday{background:rgba(255,92,92,0.1);}
+  .cal-daynum{font-family:var(--mono);font-size:12px;font-weight:600;}
+  .cal-cell.sun .cal-daynum{color:var(--sun);font-weight:800;}
+  .cal-cell.sat .cal-daynum{color:var(--sat);font-weight:800;}
+  .cal-cell.holiday .cal-daynum{color:var(--sun);font-weight:800;}
+  .cal-holiday{font-size:9.5px;color:var(--sun);font-weight:700;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cal-holiday-jp{font-size:8.5px;color:var(--ink-soft);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cal-chip{font-size:9.5px;background:var(--stamp-red);color:var(--white);border-radius:8px;padding:1px 6px;display:inline-flex;align-items:center;gap:3px;line-height:1.5;align-self:flex-start;}
+  .cal-chip .x{cursor:pointer;font-weight:700;}
+  /* ---------- 예약 (항공·호텔·이동수단) ---------- */
+  .bk-wrap{margin-top:10px;}
+  .bk-wrap-h{font-size:12px;font-weight:700;color:var(--ink-soft);margin:0 0 6px;}
+  .bk-wrap-h small{font-weight:400;margin-left:6px;}
+  .bk-card{border:1px solid var(--line);border-radius:var(--radius);background:var(--paper-2);padding:9px 11px;margin-bottom:8px;}
+  .bk-card.st-need{border-color:var(--stamp-red-dim);}
+  .bk-card.st-done{border-color:rgba(76,186,132,0.5);}
+  .bk-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .bk-ttl{font-size:13px;font-weight:700;}
+  .bk-seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:var(--radius);overflow:hidden;}
+  .bk-opt{font-family:var(--sans);font-size:12px;padding:5px 11px;border:0;border-right:1px solid var(--line-strong);background:var(--white);color:var(--ink-soft);cursor:pointer;}
+  .bk-opt:last-child{border-right:0;}
+  .bk-opt.on.none{background:var(--line-strong);color:var(--ink);}
+  .bk-opt.on.need{background:var(--stamp-red);color:#1A1D22;font-weight:700;}
+  .bk-opt.on.done{background:var(--stamp-green);color:#1A1D22;font-weight:700;}
+  .bk-fields{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px;}
+  .bk-f{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--ink-soft);}
+  .bk-f input{font-family:var(--sans);font-size:13px;padding:5px 7px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);width:140px;}
+  .bk-f input[type=date]::-webkit-calendar-picker-indicator,.bk-f input[type=time]::-webkit-calendar-picker-indicator{filter:invert(0.85);cursor:pointer;}
+  .bk-alert{margin:0 0 10px;padding:10px 12px;border:1px solid var(--stamp-red-dim);background:rgba(232,93,81,0.10);border-radius:var(--radius);font-size:12.5px;line-height:1.6;}
+  .bk-alert b{color:var(--stamp-red);}
+  .bk-alert[hidden]{display:none;}
+  table.ledger tr.bk-warn td{background:rgba(232,93,81,0.07);}
+  table.ledger tr.bk-warn td:first-child{box-shadow:inset 3px 0 0 var(--stamp-red);}
+  table.ledger td.bkc{white-space:nowrap;}
+  .bk-b{display:inline-flex;align-items:center;gap:1px;font-size:12px;margin-right:6px;padding:1px 5px;border-radius:999px;border:1px solid var(--line-strong);color:var(--ink-soft);}
+  .bk-b i{font-style:normal;font-weight:700;font-size:11px;}
+  .bk-b.st-done{border-color:rgba(76,186,132,0.6);color:var(--stamp-green);}
+  .bk-b.st-need{border-color:var(--stamp-red);color:var(--stamp-red);background:rgba(232,93,81,0.12);}
+  .bk-b.st-unset.warn{border-color:var(--gold);color:var(--gold);background:rgba(224,172,78,0.12);}
+  .bk-b.st-none{opacity:0.55;}
+  .bk-toggle{font-family:var(--sans);font-size:11px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);border-radius:999px;padding:1px 8px;cursor:pointer;}
+  table.ledger tr.bk-detail td{background:var(--paper-2);padding:10px 12px;}
+  .cal-warn{color:#FFE08A;font-weight:700;}
 
-/* 알림 */
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;display:flex;align-items:center;gap:12px;max-width:calc(100vw - 32px);
-  background:var(--ink);color:#fff;border-radius:999px;padding:9px 10px 9px 18px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,0.25);}
-.toast span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.toast button{flex-shrink:0;border:0;background:transparent;color:#F2C66D;font-weight:700;cursor:pointer;padding:4px 8px;border-radius:999px;}
+  .cal-chip.confirm{background:var(--ink);}
 
-@media (max-width:640px){
-  .rate-row{grid-template-columns:84px 1fr 1fr;}
-  .rate-row .r-note{grid-column:1/3;}
-  body{padding-top:16px;}
-  .top{align-items:stretch;}
-  .stats{width:100%;}
-  .stat{flex:1;min-width:0;padding:9px 10px;}
-  .stat .v{font-size:15px;}
-  /* 휴대폰: [추가][보기] / [검색] / [카드사][등급][정렬] */
-  #addBtn{order:1;}
-  .seg{order:2;margin-left:auto;}
-  .toolbar .grow{order:3;flex-basis:100%;}
-  .toolbar select{order:4;flex:1 1 0;min-width:0;padding:0 6px;font-size:13px;}
-  .tier-row{grid-template-columns:1fr 1fr auto;}
-  .tier-row .t-note{grid-column:1/3;}
-}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+  /* compare */
+  .compare-row{display:grid;grid-template-columns:70px 1fr 60px;gap:10px;align-items:center;padding:6px 0;font-size:13px;}
+  .compare-row .bar-wrap{background:var(--paper-2);border:1px solid var(--line);height:14px;border-radius:8px;overflow:hidden;}
+  .compare-row .bar{height:100%;background:var(--stamp-green);}
+  .compare-row .bar.over{background:var(--stamp-red);}
+  .compare-row .rem{font-family:var(--mono);text-align:right;}
+
+  /* settings / holidays */
+  details.panel{border:1px solid var(--line);border-radius:var(--radius);margin-top:14px;background:var(--paper-2);}
+  details.panel summary{cursor:pointer;padding:10px 14px;font-size:13px;font-weight:700;font-family:var(--serif);}
+  details.panel .panel-body{padding:6px 14px 16px;}
+  .rule-grid{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;}
+  .override-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .override-table th{text-align:left;color:var(--ink-soft);font-weight:600;padding:4px 6px;}
+  .override-table td{padding:3px 6px;}
+  .override-table input{width:56px;font-family:var(--mono);padding:3px 5px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);}
+  .hday-list{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow:auto;margin-bottom:10px;}
+  .hday-row{display:flex;align-items:center;gap:8px;font-size:12px;font-family:var(--mono);}
+  .hday-row .name{font-family:var(--sans);flex:1;}
+  .hday-row .del{color:var(--stamp-red-dim);cursor:pointer;padding:0 4px;}
+  .hday-row .del:hover{color:var(--stamp-red);}
+  .hday-add{display:flex;gap:6px;align-items:center;}
+  .footer-note{margin-top:30px;font-size:11px;color:var(--ink-soft);text-align:center;letter-spacing:0.3px;}
+
+  @media(max-width:640px){
+    .layout{grid-template-columns:52px 1fr;}
+    .tab{writing-mode:horizontal-tb;min-height:auto;padding:8px 2px;font-size:11px;}
+    .summary{grid-template-columns:1fr;gap:14px;}
+    .stat{border-left:none;border-top:1px solid var(--line);padding-left:0;padding-top:10px;}
+    .cal-cell{min-height:52px;padding:3px 4px;}
+    .cal-holiday{display:none;}
+    .cal-holiday-jp{display:none;}
+    .cal-chip{font-size:8px;padding:1px 4px;}
+  }
+  /* backup */
+  .bk-h{font-size:13px;font-weight:700;margin:6px 0 4px;}
+  .bk-p{font-size:12px;color:var(--ink-soft);margin:0 0 8px;line-height:1.6;}
+  .bk-text{width:100%;min-height:64px;font-family:var(--mono);font-size:11px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);resize:vertical;margin-bottom:8px;}
+  .bk-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .bk-row span{font-size:12px;color:var(--stamp-green);}
+  [hidden]{display:none!important;}
+  .auth-box{max-width:460px;margin:30px auto;background:var(--paper-2);border:1px solid var(--line-strong);border-radius:var(--radius);padding:30px 22px;text-align:center;}
+  .auth-box h3{font-family:var(--serif);font-size:19px;margin:0 0 8px;}
+  .auth-box p{font-size:13px;color:var(--ink-soft);line-height:1.7;margin:0 0 18px;}
+  .auth-box .btn{padding:10px 22px;font-size:14px;}
+  .auth-msg{margin:14px 0 0!important;color:var(--stamp-red)!important;font-size:12px!important;min-height:1em;}
+  .auth-warn{border:1px solid var(--stamp-red-dim);border-radius:var(--radius);padding:10px 12px;font-size:12px!important;color:var(--ink)!important;text-align:left;}
+  .acct{margin-top:6px;}
+  .link-btn{border:0;background:transparent;color:inherit;font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0;}
+  .link-btn:hover{color:var(--ink);}
+  /* 휴대폰에서 오른쪽이 잘리던 문제 */
+  @media(max-width:640px){
+    .layout>.book{min-width:0;padding:16px 12px;}
+    .cal-nav{flex-wrap:wrap;gap:8px;}
+    table.ledger{display:block;overflow-x:auto;}
+    .hday-add{flex-wrap:wrap;}
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <nav class="tool-nav" aria-label="도구 전환"><a href="../">응모 수첩</a><a href="../leave/">연차관리대장</a><a href="./" aria-current="page">카드 지갑</a></nav>
-
-  <header class="top">
+<div class="app">
+  <nav class="tool-nav" aria-label="도구 전환"><a href="../">응모 수첩</a><a href="./" aria-current="page">연차관리대장</a><a href="../cards/">카드 지갑</a></nav>
+  <div class="masthead">
     <div>
-      <h1>카드 지갑</h1>
-      <p class="sub">갖고 있는 카드의 연회비·실적·혜택을 한눈에</p>
-      <div class="sync warn" id="sync">불러오는 중...</div>
+      <h1>연차관리대장</h1>
+      <div class="sub">휴가 계획 · 연차 사용 · 잔여일수 원장</div>
+      <div class="save-status" id="saveStatus"></div>
+      <div class="acct-line" id="acct"></div>
     </div>
-    <div class="stats" id="stats" hidden>
-      <div class="stat"><div class="k">카드</div><div class="v" id="stCount">0<small>장</small></div></div>
-      <div class="stat"><div class="k">연회비 합계</div><div class="v" id="stFee">0</div></div>
+    <div class="year-picker">
+      <button id="yPrev">‹</button>
+      <select id="ySelect"></select>
+      <button id="yNext">›</button>
     </div>
-  </header>
+  </div>
 
-  <div class="auth" id="authBox" hidden>
-    <h2>내 카드 지갑 열기</h2>
+  <div class="auth-box" id="authBox" hidden>
+    <h3>내 연차관리대장 열기</h3>
     <p>기록은 내 구글 계정으로만 열 수 있어요.<br>처음 한 번 로그인하면 이 기기에서는 계속 로그인돼 있어요.</p>
     <p class="auth-warn" id="inAppWarn" hidden>카카오톡·네이버 같은 앱 안에서 열면 구글 로그인이 막혀요. 오른쪽 위 메뉴의 <b>다른 브라우저로 열기</b>로 크롬이나 사파리에서 열어주세요.</p>
-    <button class="btn primary" id="loginBtn">Google 계정으로 로그인</button>
+    <button class="btn" id="loginBtn">Google 계정으로 로그인</button>
     <p class="auth-msg" id="authMsg" aria-live="polite"></p>
   </div>
 
-  <main id="app" hidden>
-    <div class="toolbar">
-      <button class="btn primary" id="addBtn">+ 카드 추가</button>
-      <div class="grow"><input type="search" id="q" placeholder="카드 이름·혜택·비고 검색" autocomplete="off" aria-label="검색"></div>
-      <select id="fIssuer" aria-label="카드사로 거르기"></select>
-      <select id="fGrade" aria-label="등급으로 거르기"></select>
-      <select id="sortSel" aria-label="정렬">
-        <option value="added">추가한 순</option>
-        <option value="name">이름순</option>
-        <option value="issuer">카드사순</option>
-        <option value="fee-asc">연회비 낮은 순</option>
-        <option value="fee-desc">연회비 높은 순</option>
-        <option value="spend-asc">전월 실적 낮은 순</option>
-        <option value="spend-desc">전월 실적 높은 순</option>
-      </select>
-      <div class="seg" role="group" aria-label="보기 방식">
-        <button type="button" data-view="grid" aria-pressed="true">카드</button>
-        <button type="button" data-view="table" aria-pressed="false">표</button>
-      </div>
-    </div>
-    <div class="chips" id="netChips"></div>
-    <div class="chips" id="tagChips"></div>
+  <div class="layout" id="appLayout" hidden>
+    <div class="tabs" id="tabs"></div>
+    <div class="book">
 
-    <form class="panel" id="form" hidden autocomplete="off">
-      <h3 id="formTitle">카드 추가</h3>
-      <div class="grid2">
-        <div class="field"><label for="iName">카드 이름</label><input id="iName" maxlength="40" placeholder="예: 신한 Deep Dream"></div>
-        <div class="field"><label for="iIssuer">카드사</label><input id="iIssuer" list="dlIssuer" maxlength="20" placeholder="예: 신한"></div>
-        <div class="field"><label for="iNet">결제망</label><input id="iNet" list="dlNet" maxlength="20" placeholder="예: VISA"></div>
-        <div class="field"><label for="iGrade">카드 등급</label><input id="iGrade" list="dlGrade" maxlength="20" placeholder="예: Platinum"></div>
-        <div class="field"><label for="iFee">연회비 (원)</label><input id="iFee" inputmode="numeric" placeholder="예: 15,000 · 없으면 0"></div>
+      <div class="summary" id="summary"></div>
+
+      <h2 class="sec-title" id="calTitle">캘린더</h2>
+      <div class="cal-nav">
+        <button id="calPrev">‹ 이전달</button>
+        <div class="cal-label" id="calLabel"></div>
+        <button id="calNext">다음달 ›</button>
+        <span class="cal-jump">
+          <select id="calYearJump"></select>년
+          <select id="calMonthJump"></select>월
+        </span>
       </div>
-      <div class="field" style="margin-bottom:12px;">
-        <span class="label">전월 실적별 혜택 한도</span>
-        <div class="tiers-edit" id="tierRows"></div>
-        <button type="button" class="btn small" id="addTierBtn">+ 실적 단계 추가</button>
-        <span class="hint">예: 30만원 이상 → 한도 1만원, 50만원 이상 → 한도 2만원. 실적 조건이 없는 카드는 실적에 0을 넣고, 한도가 없으면 비워두세요.</span>
-      </div>
-      <div class="field" style="margin-bottom:12px;">
-        <span class="label">혜택 분야 (여러 개 고를 수 있어요)</span>
-        <div class="tag-pick" id="tagPick"></div>
-        <div class="sub-pick" id="subPick"></div>
-        <div class="rates-edit" id="rateRows"></div>
-        <span class="hint" id="rateHint" hidden>분야마다 혜택을 숫자와 단위로 적을 수 있어요. 비워둬도 돼요. 예: 카페 50 % 할인 · 스타벅스. 전월 실적을 못 채워도 받는 혜택은 오른쪽 버튼을 눌러 <b>무실적</b>으로 바꿔주세요.</span>
-      </div>
-      <div class="grid2">
-        <div class="field"><label for="iBenefits">혜택</label><textarea id="iBenefits" placeholder="한 줄에 하나씩&#10;예: 주유 리터당 60원 할인&#10;예: 스타벅스 50% 할인 (월 1회)"></textarea></div>
-        <div class="field"><label for="iMemo">비고</label><textarea id="iMemo" placeholder="예: 연회비 3월 청구, 실적 제외 항목 등"></textarea>
-          <span class="hint">카드 번호·CVC·비밀번호는 적지 마세요.</span></div>
-      </div>
-      <div class="field" style="margin-bottom:14px;">
-        <span class="label">카드 이미지 (선택)</span>
-        <div class="img-pick">
-          <div class="img-prev" id="imgPrev">이미지 없음</div>
-          <div class="img-btns">
-            <button type="button" class="btn small" id="imgPickBtn">사진 선택</button>
-            <button type="button" class="btn small" id="imgRotate" hidden>↻ 돌리기</button>
-            <button type="button" class="btn small ghost" id="imgRemove" hidden>이미지 빼기</button>
-            <input type="file" id="iImage" accept="image/*" class="sr-only" tabindex="-1" aria-label="카드 이미지 파일">
+      <div class="cal-grid" id="calWeekdays"></div>
+      <div class="cal-grid days" id="calDays"></div>
+
+      <h2 class="sec-title">연차 사용 입력</h2>
+      <div class="entry-form">
+        <div class="field">
+          <label>날짜</label>
+          <input type="date" id="fDate">
+        </div>
+        <div class="field">
+          <label>구분</label>
+          <select id="fType">
+            <option value="480">종일 (8H)</option>
+            <option value="240">오전 반차 (4H)</option>
+            <option value="240pm">오후 반차 (4H)</option>
+            <option value="custom">시간 단위 직접입력</option>
+          </select>
+        </div>
+        <div class="field" id="fCustomWrap" style="display:none;">
+          <label>사용 시간</label>
+          <div class="hm-row">
+            <input type="number" id="fHour" min="0" max="8" value="0" style="width:48px;"> 시간
+            <select id="fMin">
+              <option value="0">00</option><option value="15">15</option>
+              <option value="30">30</option><option value="45">45</option>
+            </select> 분
           </div>
         </div>
-        <span class="img-err" id="imgErr" aria-live="polite"></span>
-        <span class="hint">카드사 홈페이지·앱의 카드 디자인 이미지를 쓰세요. 실물 카드 사진은 카드 번호가 보여서 넣지 마세요. 세로 카드는 자동으로 눕혀요.</span>
+        <div class="field memo">
+          <label>메모</label>
+          <input type="text" id="fMemo" placeholder="예: 여행, 병원">
+        </div>
+        <button class="btn" id="fAdd">+ 등록</button>
       </div>
-      <div class="field" style="margin-bottom:14px;">
-        <span class="label">카드 색 (이미지가 없을 때)</span>
-        <div class="swatches" id="swatches"></div>
+      <div class="bk-wrap">
+        <p class="bk-wrap-h">예약 확인 <small>항공·호텔·이동수단 — 체크하지 않은 일정은 내역에서 경고로 표시돼요</small></p>
+        <div id="fBook"></div>
       </div>
-      <div class="form-actions">
-        <button type="button" class="btn danger" id="delBtn" hidden>삭제</button>
-        <span class="spacer"></span>
-        <button type="button" class="btn ghost" id="cancelBtn">취소</button>
-        <button type="submit" class="btn primary" id="saveBtn">추가하기</button>
-      </div>
-    </form>
 
-    <div class="result-note" id="resultNote"></div>
-    <div id="list"></div>
+      <h2 class="sec-title" id="ledgerTitle">사용 내역</h2>
+      <div class="bk-alert" id="bkAlert" hidden></div>
+      <table class="ledger">
+        <thead><tr><th>날짜</th><th>요일</th><th>구분</th><th>메모</th><th>예약</th><th style="text-align:right;">사용(일)</th><th></th></tr></thead>
+        <tbody id="ledgerBody"></tbody>
+      </table>
 
-    <details class="backup" id="backupBox">
-      <summary>백업 · 가져오기</summary>
-      <div class="panel">
-        <p class="bk-p"><b>백업해 두기</b> — 카드 목록 전체를 코드로 복사해요. 메모장 등에 붙여넣어 보관하면 돼요.</p>
-        <div class="bk-row"><button type="button" class="btn" id="copyBackupBtn">백업 코드 복사</button><span id="backupMsg" aria-live="polite"></span></div>
-        <textarea id="backupText" readonly hidden></textarea>
-        <p class="bk-p"><b>가져오기</b> — 복사해 둔 백업 코드를 붙여넣어요. 이미 있는 카드는 건너뛰어요.</p>
-        <textarea id="importText" placeholder="여기에 백업 코드 붙여넣기"></textarea>
-        <div class="bk-row"><button type="button" class="btn primary" id="importBtn">가져오기</button><span id="importMsg" aria-live="polite"></span></div>
-      </div>
-    </details>
-  </main>
+      <h2 class="sec-title">시나리오 비교 <span class="badge" id="compareYearBadge"></span></h2>
+      <div id="compareBox"></div>
 
-  <div class="foot" id="acct">기록은 내 구글 계정으로 보호돼요</div>
+      <details class="panel">
+        <summary>⚙ 연차 부여 규칙 설정</summary>
+        <div class="panel-body">
+          <div class="rule-grid">
+            <div class="field"><label>기준 연도</label><input type="number" id="sBaseYear"></div>
+            <div class="field"><label>기준 연도 부여일수</label><input type="number" id="sBaseGrant"></div>
+            <div class="field"><label>증가 주기(년)</label><input type="number" id="sIncEvery"></div>
+            <div class="field"><label>주기당 증가일수</label><input type="number" id="sIncAmount"></div>
+            <div class="field"><label>최대 상한</label><input type="number" id="sCap"></div>
+          </div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">예: 기준 연도 2027년에 16개 → 이후 2년마다 1개씩 증가 (2029년 17개, 2031년 18개…). 계산값은 아래 표에서 연도별로 직접 덮어쓸 수 있습니다.</div>
+          <table class="override-table" id="overrideTable">
+            <thead><tr><th>연도</th><th>자동계산</th><th>수동설정(비우면 자동값 사용)</th></tr></thead>
+            <tbody id="overrideBody"></tbody>
+          </table>
+        </div>
+      </details>
+
+      <details class="panel">
+        <summary>📅 공휴일 관리 (<span id="hdayYearLabel"></span>년)</summary>
+        <div class="panel-body">
+          <div class="hday-list" id="hdayList"></div>
+          <div class="hday-add">
+            <input type="date" id="hAddDate">
+            <input type="text" id="hAddName" placeholder="공휴일명" style="width:140px;">
+            <button class="btn ghost" id="hAddBtn">+ 추가</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="panel" id="backupPanel">
+        <summary>📦 백업 · 가져오기</summary>
+        <div class="panel-body">
+          <div class="bk-h">기존 연차관리대장에서 옮겨오기</div>
+          <p class="bk-p">기존 연차관리대장(Claude) 맨 아래 <b>📦 백업 코드 내보내기 → 백업 코드 복사</b>를 누른 뒤, 여기에 붙여넣고 가져오기를 눌러주세요. 지금 화면의 기록은 가져온 내용으로 바뀌어요.</p>
+          <textarea id="importText" class="bk-text" placeholder="여기에 백업 코드 붙여넣기"></textarea>
+          <div class="bk-row"><button class="btn" id="importBtn">가져오기</button><span id="importMsg" aria-live="polite"></span></div>
+          <div class="bk-h">백업해 두기</div>
+          <p class="bk-p">지금 기록 전체를 코드로 복사해요. 메모장 등에 붙여넣어 보관하면 돼요.</p>
+          <div class="bk-row"><button class="btn ghost" id="copyBackupBtn">백업 코드 복사</button><span id="backupMsg" aria-live="polite"></span></div>
+          <textarea id="backupText" class="bk-text" readonly hidden></textarea>
+        </div>
+      </details>
+
+      <div class="footer-note">8H = 연차 1개 · 15분 단위 사용 가능 · 기록은 내 구글 계정으로 보호돼요</div>
+    </div>
+  </div>
 </div>
-
-<datalist id="dlIssuer"></datalist>
-<datalist id="dlNet"></datalist>
-<datalist id="dlGrade"></datalist>
-<div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastMsg"></span><button type="button" id="toastUndo">되돌리기</button></div>
 
 <script src="../fb.js" defer onerror="window.__fbFailed&&window.__fbFailed()"></script>
 <script>
 (function(){
-const $ = id => document.getElementById(id);
+  const WEEKDAYS = ['일','월','화','수','목','금','토'];
+  let state = { settings:null, overrides:{}, holidays:{}, holidaysJP:{}, scenarios:[], activeScenario:null };
+  let selectedYear = 2026;
+  let selectedMonth = new Date().getMonth(); // 0-11
+  let selectedDate = null; // 'YYYY-MM-DD' currently clicked in calendar
 
-/* ---------- 기본 목록 ---------- */
-const ISSUERS = ['신한','삼성','현대','KB국민','롯데','하나','우리','BC','NH농협','IBK기업','씨티','카카오뱅크','토스뱅크','SC제일','수협','광주','전북','제주','우체국'];
-const NETWORKS = ['VISA','Mastercard','JCB','AMEX','UnionPay','국내전용'];
-const GRADES = ['일반','Gold','Platinum','Signature','World','World Elite','Infinite','Ultimate','Black','Diamond'];
-const TAGS = ['국내 가맹점','쇼핑','온라인','간편결제','주유','택시','통신','카페','외식','영화','편의점','마트','백화점','해외','면세점','항공','마일리지','포인트·캐시백','공과금','구독'];
-// 세부로 나눌 수 있는 분야: '영화'만 고르면 영화 전체, 세부를 고르면 '영화 · CGV'처럼 따로 저장돼요
-const SUBTAGS = {'간편결제':['네이버페이','카카오페이','페이코','토스페이','KB페이'], '영화':['CGV','롯데시네마','메가박스']};
-const SUBSEP = ' · ';
-function parentOf(t){ const k=String(t).indexOf(SUBSEP); return k<0 ? t : t.slice(0,k); }
-function subName(t){ const k=String(t).indexOf(SUBSEP); return k<0 ? t : t.slice(k+SUBSEP.length); }
-function isSubTag(t){ return String(t).includes(SUBSEP) && !!SUBTAGS[parentOf(t)]; }
-function tagLabel(t){ return isSubTag(t) ? subName(t) : t; }
-const COLORS = [['#1F2A44','남색'],['#1B1B1F','검정'],['#7E858F','실버'],['#A9874F','골드'],['#B23A2E','빨강'],['#1E6F5C','초록'],['#2F5DA8','파랑'],['#5B4B8A','보라'],['#C2577A','분홍']];
+  function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
 
-/* ---------- 작은 도구 ---------- */
-function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function uid(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
-function num(v){ if(v===''||v==null) return null; const n=parseInt(String(v).replace(/[^0-9]/g,''),10); return isNaN(n)?null:n; }
-function commas(n){ return n==null ? '' : Number(n).toLocaleString('ko-KR'); }
-function won(n){
-  if(n==null||n==='') return '—';
-  n=Number(n); if(!n) return '없음';
-  if(n>=10000){ const m=Math.round(n/1000)/10; return m.toLocaleString('ko-KR')+'만원'; }
-  return n.toLocaleString('ko-KR')+'원';
-}
-function normNet(s){
-  const t=String(s||'').trim(); if(!t) return '';
-  const u=t.toUpperCase().replace(/[\s.]/g,'');
-  if(u.startsWith('VISA')||t==='비자') return 'VISA';
-  if(u.startsWith('MASTER')||t.startsWith('마스터')) return 'Mastercard';
-  if(u==='JCB') return 'JCB';
-  if(u.startsWith('AMEX')||u.startsWith('AMERICAN')||t.includes('아멕스')) return 'AMEX';
-  if(u.startsWith('UNION')||u==='UPI'||t.includes('은련')) return 'UnionPay';
-  if(t.includes('국내')||u==='LOCAL') return '국내전용';
-  return t;
-}
-function colorOf(c){
-  if(c.color) return c.color;
-  const s=String(c.issuer||c.name||''); let h=0; for(const ch of s) h=(h*31+ch.charCodeAt(0))>>>0;
-  return COLORS[h%COLORS.length][0];
-}
-// 전월 실적 단계: [{min:실적(원), limit:혜택 한도(원), note:메모}] — 예전 카드는 prevSpend 하나를 첫 단계로 봐요
-function tiersOf(c){
-  if(Array.isArray(c.tiers) && c.tiers.length) return [...c.tiers].sort((a,b)=>(a.min||0)-(b.min||0));
-  if(c.prevSpend!=null) return [{min:c.prevSpend, limit:null, note:''}];
-  return [];
-}
-function minLabel(n){ return Number(n) ? `${won(n)} 이상` : '조건 없음'; }
-function spendShort(c){
-  const t=tiersOf(c); if(!t.length) return '—';
-  return t.length>1 ? `${won(t[0].min)}~` : won(t[0].min);
-}
-function tierText(t){ return `${minLabel(t.min)} → 한도 ${t.limit!=null?won(t.limit):'—'}${t.note?` (${t.note})`:''}`; }
-// 예전 '항공·마일리지'는 '항공'과 '마일리지' 두 개로 나눠요
-function sortTags(list){
-  const r=t=>{ const p=parentOf(t), i=TAGS.indexOf(p); if(i<0) return 999; if(p===t) return i; const k=(SUBTAGS[p]||[]).indexOf(subName(t)); return i+0.1+(k<0?0.09:k*0.01); };
-  return [...list].sort((a,b)=>r(a)-r(b));
-}
-function normTags(tags){
-  const out=[]; (Array.isArray(tags)?tags:[]).forEach(t=>{ (t==='항공·마일리지' ? ['항공','마일리지'] : [t]).forEach(x=>{ if(x && !out.includes(x)) out.push(x); }); });
-  return sortTags(out);
-}
-// 카드 이미지는 이 페이지가 만든 data:image 주소만 써요
-function safeImg(u){ return (typeof u==='string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(u)) ? u : ''; }
-// 분야별 혜택: rates = { '카페': {v:50, u:'pct_off', note:'스타벅스'}, ... }
-const UNITS = [
-  ['pct_off','% 할인',   v=>`${v}% 할인`],
-  ['pct_pt', '% 적립',   v=>`${v}% 적립`],
-  ['pct_cb', '% 캐시백', v=>`${v}% 캐시백`],
-  ['pt',     'P 적립',   v=>`${Number(v).toLocaleString('ko-KR')}P 적립`],
-  ['won_off','원 할인',  v=>`${Number(v).toLocaleString('ko-KR')}원 할인`],
-  ['won_l',  '원/L 할인', v=>`리터당 ${Number(v).toLocaleString('ko-KR')}원 할인`],
-  ['mile',   '마일/1천원', v=>`1천원당 ${v}마일`],
-];
-const UNIT_FMT = Object.fromEntries(UNITS.map(([k,,f])=>[k,f]));
-function defaultUnit(tag){ return parentOf(tag)==='영화' ? 'won_off' : tag==='주유' ? 'won_l' : tag==='마일리지'||tag==='항공' ? 'mile' : tag==='포인트·캐시백' ? 'pct_pt' : 'pct_off'; }
-function rateOf(c, tag){ const r=c && c.rates && c.rates[tag]; return r && (r.v!=null || r.note || r.free) ? r : null; }
-// 무실적 혜택: 전월 실적을 못 채워도 받는 혜택
-function isFree(c, tag){ const r=rateOf(c,tag); return !!(r && r.free); }
-function hasFree(c){ return (c.tags||[]).some(t=>isFree(c,t)); }
-function rateText(r){
-  if(!r) return '';
-  const val = r.v!=null && UNIT_FMT[r.u] ? UNIT_FMT[r.u](r.v) : '';
-  return val;
-}
-function tagChipHtml(c, t, badge){
-  const r=rateOf(c,t), val=rateText(r);
-  return `<span class="tag" title="${esc(t)}">${esc(tagLabel(t))}${val?`<b>${esc(val)}</b>`:''}${r&&r.note?`<i>· ${esc(r.note)}</i>`:''}${badge&&r&&r.free?'<em>무실적</em>':''}</span>`;
-}
-// 무실적 혜택과 실적 필요 혜택이 섞여 있으면 둘로 나눠서 보여줘요
-function rateBits(r, badge){
-  const val=rateText(r);
-  return `${val?`<b>${esc(val)}</b>`:''}${r&&r.note?`<i>· ${esc(r.note)}</i>`:''}${badge&&r&&r.free?'<em>무실적</em>':''}`;
-}
-function chipsHtml(c, list, badge){
-  const out=[], fams=new Map();
-  list.forEach(t=>{
-    const fam = isSubTag(t) ? parentOf(t) : (SUBTAGS[t] ? t : null);
-    if(!fam){ out.push({one:t}); return; }
-    if(!fams.has(fam)){ const g={fam, parent:false, subs:[]}; fams.set(fam,g); out.push(g); }
-    const g=fams.get(fam); if(t===fam) g.parent=true; else g.subs.push(t);
-  });
-  return out.map(x=>{
-    if(x.one) return tagChipHtml(c, x.one, badge);
-    if(!x.subs.length) return tagChipHtml(c, x.fam, badge);
-    const head=`<span class="fname">${esc(x.fam)}${x.parent ? rateBits(rateOf(c,x.fam), badge) : ''}</span>`;
-    const subs=x.subs.map(t=>`<span class="sub" title="${esc(t)}">${esc(subName(t))}${rateBits(rateOf(c,t), badge)}</span>`).join('');
-    return `<span class="tag fam">${head}<span class="subs">${subs}</span></span>`;
-  }).join('');
-}
-function tagsHtml(c){
-  const tags=c.tags||[]; if(!tags.length) return '';
-  const rated=tags.some(t=>rateOf(c,t)) ? ' rated' : '';
-  const box=(list,badge)=>`<div class="tags${rated}">${chipsHtml(c,list,badge)}</div>`;
-  const free=tags.filter(t=>isFree(c,t)), req=tags.filter(t=>!isFree(c,t));
-  if(free.length && req.length) return `<div class="bgroups"><div class="bh free">무실적 혜택</div>${box(free,false)}<div class="bh">전월 실적 채우면</div>${box(req,false)}</div>`;
-  return box(tags, true);
-}
-function benefitLines(c){ return String(c.benefits||'').split('\n').map(x=>x.trim()).filter(Boolean); }
+  const DEFAULT_SETTINGS = { baseYear:2027, baseGrant:16, incEvery:2, incAmount:1, cap:25 };
 
-/* ---------- 상태 ---------- */
-let cards = null;                // 저장소에서 온 카드 목록
-let view = 'grid', sortKey = 'added';
-const filt = {issuer:'', grade:'', network:'', tag:'', q:'', free:false};
-const openTiles = new Set();     // 혜택 '더 보기' 펼친 카드
-let editingId = null;
-try{
-  const v=localStorage.getItem('cards-view'); if(v==='grid'||v==='table') view=v;
-  const s=localStorage.getItem('cards-sort'); if(s) sortKey=s;
-}catch(_){}
-
-/* ---------- 저장소 (Firebase) ---------- */
-// 카드 한 장 = Firestore 문서 하나 (users/{내 계정}/cards/{카드}). 보안 규칙으로 내 계정만 읽고 쓸 수 있어요.
-let fb=null, user=null, colRef=null, unsub=null, loaded=false;
-let fbResolve, fbReject;
-const fbReady = new Promise((res,rej)=>{ fbResolve=res; fbReject=rej; });
-window.__fbLoaded = api => fbResolve(api);
-window.__fbFailed = () => fbReject(new Error('load'));
-if(window.__fbApi) fbResolve(window.__fbApi);
-const IN_APP = /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp/i.test(navigator.userAgent);
-
-function fbErrText(e){
-  const c=(e&&e.code)||'';
-  if(c==='auth/popup-blocked') return '로그인 창이 막혔어요. 브라우저에서 이 사이트의 팝업을 허용한 뒤 다시 눌러주세요.';
-  if(c==='auth/popup-closed-by-user'||c==='auth/cancelled-popup-request') return '로그인 창이 닫혔어요. 다시 눌러주세요.';
-  if(c==='auth/unauthorized-domain') return 'Firebase 승인된 도메인에 bae4021.github.io가 없어요.';
-  if(c==='auth/network-request-failed'||c==='unavailable') return '인터넷 연결을 확인해주세요.';
-  if(c==='permission-denied') return '이 계정은 열 수 없거나, Firestore 보안 규칙이 아직 바뀌지 않았어요. 로그인한 계정과 보안 규칙을 확인해주세요.';
-  if(c==='resource-exhausted') return '오늘 무료 사용 한도를 다 썼어요. 기록은 이 기기에 보관돼 있고, 한국 시간 오후 4~5시쯤 한도가 초기화되면 자동으로 저장돼요.';
-  return (e&&e.message)||String(e||'알 수 없는 오류');
-}
-function setSync(kind, text){
-  const el=$('sync');
-  const map={
-    online:['ok','계정에 기록 중 · 어느 기기에서든 그대로 보여요'],
-    pending:['warn','아직 서버에 저장되지 않았어요 · 이 기기에 보관 중이고, 연결되면 자동으로 저장돼요'],
-    offline:['warn','오프라인 · 연결되면 자동으로 저장돼요'],
-    loading:['warn','불러오는 중...'],
-    login:['warn','로그인이 필요해요'],
-    error:['err', text||'저장소에 연결하지 못했어요'],
+  const DEFAULT_HOLIDAYS = {
+    2026:[
+      {date:'2026-01-01',name:'신정'},
+      {date:'2026-02-16',name:'설날 연휴'},
+      {date:'2026-02-17',name:'설날'},
+      {date:'2026-02-18',name:'설날 연휴'},
+      {date:'2026-03-01',name:'삼일절'},
+      {date:'2026-03-02',name:'삼일절 대체공휴일'},
+      {date:'2026-05-01',name:'노동절'},
+      {date:'2026-05-05',name:'어린이날'},
+      {date:'2026-05-24',name:'부처님오신날'},
+      {date:'2026-05-25',name:'부처님오신날 대체공휴일'},
+      {date:'2026-06-06',name:'현충일'},
+      {date:'2026-07-17',name:'제헌절'},
+      {date:'2026-08-15',name:'광복절'},
+      {date:'2026-08-17',name:'광복절 대체공휴일'},
+      {date:'2026-09-24',name:'추석 연휴'},
+      {date:'2026-09-25',name:'추석'},
+      {date:'2026-09-26',name:'추석 연휴'},
+      {date:'2026-10-03',name:'개천절'},
+      {date:'2026-10-05',name:'개천절 대체공휴일'},
+      {date:'2026-10-09',name:'한글날'},
+      {date:'2026-12-25',name:'기독탄신일'}
+    ],
+    2027:[
+      {date:'2027-01-01',name:'신정'},
+      {date:'2027-02-06',name:'설날 연휴'},
+      {date:'2027-02-07',name:'설날'},
+      {date:'2027-02-08',name:'설날 연휴'},
+      {date:'2027-02-09',name:'설날 대체공휴일'},
+      {date:'2027-03-01',name:'삼일절'},
+      {date:'2027-05-01',name:'노동절'},
+      {date:'2027-05-05',name:'어린이날'},
+      {date:'2027-05-13',name:'부처님오신날'},
+      {date:'2027-06-06',name:'현충일'},
+      {date:'2027-07-17',name:'제헌절'},
+      {date:'2027-08-15',name:'광복절'},
+      {date:'2027-08-16',name:'광복절 대체공휴일'},
+      {date:'2027-09-14',name:'추석 연휴'},
+      {date:'2027-09-15',name:'추석'},
+      {date:'2027-09-16',name:'추석 연휴'},
+      {date:'2027-10-03',name:'개천절'},
+      {date:'2027-10-04',name:'개천절 대체공휴일'},
+      {date:'2027-10-09',name:'한글날'},
+      {date:'2027-10-11',name:'한글날 대체공휴일'},
+      {date:'2027-12-25',name:'기독탄신일'},
+      {date:'2027-12-27',name:'기독탄신일 대체공휴일'}
+    ]
   };
-  const [cls,msg]=map[kind]||map.loading;
-  el.className='sync '+cls; el.textContent=msg;
-}
-const PENDING_WARN_MS = window.__pendingWarnMs || 10000;
-let pendingTimer=null, pendingLong=false, stickyError=null;
-function refreshSync(){
-  if(!user||!loaded) return;
-  if(stickyError){ setSync('error', stickyError); return; }
-  setSync(!navigator.onLine ? 'offline' : pendingLong ? 'pending' : 'online');
-}
-function watchPending(has){
-  if(has){
-    if(!pendingTimer && !pendingLong) pendingTimer=setTimeout(()=>{ pendingTimer=null; pendingLong=true; refreshSync(); }, PENDING_WARN_MS);
-  }else{ clearTimeout(pendingTimer); pendingTimer=null; pendingLong=false; }
-  refreshSync();
-}
-window.addEventListener('online', refreshSync);
-window.addEventListener('offline', refreshSync);
 
-function showApp(on){ $('app').hidden=!on; $('stats').hidden=!on; $('authBox').hidden=on; }
-function renderAcct(){
-  $('acct').innerHTML = user ? `${esc(user.email||'')} 계정에 저장돼요 · <button class="link-btn" id="logoutBtn">로그아웃</button>` : '기록은 내 구글 계정으로 보호돼요';
-}
-async function login(){
-  $('authMsg').textContent='';
-  if(!fb){ $('authMsg').textContent='아직 준비 중이에요. 잠시 후 다시 눌러주세요.'; return; }
-  try{ const p=new fb.GoogleAuthProvider(); p.setCustomParameters({prompt:'select_account'}); await fb.signInWithPopup(fb.auth,p); }
-  catch(e){ console.error(e); $('authMsg').textContent=fbErrText(e); }
-}
-function startStore(){
-  fb.onAuthStateChanged(fb.auth, u=>{
-    if(unsub){ unsub(); unsub=null; }
-    user=u||null; loaded=false; cards=null; colRef=null; stickyError=null;
-    renderAcct();
-    if(!user){ showApp(false); setSync('login'); return; }
-    $('authBox').hidden=true; $('authMsg').textContent='';
-    setSync('loading');
-    colRef = fb.collection(fb.db,'users',user.uid,'cards');
-    unsub = fb.onSnapshot(colRef, {includeMetadataChanges:true}, snap=>{
-      cards = snap.docs.map(d=>{ const c={id:d.id, ...d.data()}; c.tags=normTags(c.tags); return c; });
-      if(!loaded){ loaded=true; showApp(true); }
-      stickyError=null;
-      watchPending(snap.metadata.hasPendingWrites);
-      render();
-    }, err=>{
-      console.error('snapshot error', err);
-      stickyError=fbErrText(err);
-      if(!loaded){ showApp(false); $('authMsg').textContent=stickyError; setSync('error', stickyError); }
-      else refreshSync();
-    });
-  });
-}
-async function save(id, fn){
-  if(!colRef) return;
-  try{ await fn(); }
-  catch(e){ console.error(e); stickyError=fbErrText(e); refreshSync(); }
-}
-function putCard(c){
-  const {id,...data}=c;
-  const i=(cards||[]).findIndex(x=>x.id===id);
-  if(i>=0) cards[i]=c; else (cards=cards||[]).push(c);
-  render();
-  return save(id, ()=>fb.setDoc(fb.doc(colRef,id), data));
-}
-function removeCard(id){
-  cards=(cards||[]).filter(x=>x.id!==id); render();
-  return save(id, ()=>fb.deleteDoc(fb.doc(colRef,id)));
-}
-
-/* ---------- 거르기·정렬 ---------- */
-function haystack(c){ return [c.name,c.issuer,c.grade,normNet(c.network),c.benefits,c.memo,(c.tags||[]).join(' '),tiersOf(c).map(t=>t.note||'').join(' '),Object.values(c.rates||{}).map(r=>r&&r.note||'').join(' ')].join(' ').toLowerCase(); }
-function visibleCards(){
-  const q=filt.q.trim().toLowerCase();
-  let list=(cards||[]).filter(c=>
-    (!filt.issuer || (c.issuer||'')===filt.issuer) &&
-    (!filt.grade || (c.grade||'')===filt.grade) &&
-    (!filt.network || normNet(c.network)===filt.network) &&
-    (!filt.tag || (c.tags||[]).some(t=>parentOf(t)===filt.tag)) &&
-    (!filt.free || (filt.tag ? (c.tags||[]).some(t=>parentOf(t)===filt.tag && isFree(c,t)) : hasFree(c))) &&
-    (!q || haystack(c).includes(q)));
-  const byNum=(k,dir)=>(a,b)=>{ const x=a[k], y=b[k]; if(x==null&&y==null) return 0; if(x==null) return 1; if(y==null) return -1; return dir*(x-y); };
-  const byStr=k=>(a,b)=>String(a[k]||'￿').localeCompare(String(b[k]||'￿'),'ko') || String(a.name||'').localeCompare(String(b.name||''),'ko');
-  const sorters={
-    added:(a,b)=>(a.createdAt||0)-(b.createdAt||0),
-    name:byStr('name'), issuer:byStr('issuer'),
-    'fee-asc':byNum('annualFee',1), 'fee-desc':byNum('annualFee',-1),
-    'spend-asc':byNum('prevSpend',1), 'spend-desc':byNum('prevSpend',-1),
+  const DEFAULT_HOLIDAYS_JP = {
+    2026:[
+      {date:'2026-01-01',name:'元日'},
+      {date:'2026-01-12',name:'成人の日'},
+      {date:'2026-02-11',name:'建国記念の日'},
+      {date:'2026-02-23',name:'天皇誕生日'},
+      {date:'2026-03-20',name:'春分の日'},
+      {date:'2026-04-29',name:'昭和の日'},
+      {date:'2026-05-03',name:'憲法記念日'},
+      {date:'2026-05-04',name:'みどりの日'},
+      {date:'2026-05-05',name:'こどもの日'},
+      {date:'2026-05-06',name:'振替休日'},
+      {date:'2026-07-20',name:'海の日'},
+      {date:'2026-08-11',name:'山の日'},
+      {date:'2026-09-21',name:'敬老の日'},
+      {date:'2026-09-22',name:'国民の休日'},
+      {date:'2026-09-23',name:'秋分の日'},
+      {date:'2026-10-12',name:'スポーツの日'},
+      {date:'2026-11-03',name:'文化の日'},
+      {date:'2026-11-23',name:'勤労感謝の日'}
+    ],
+    2027:[
+      {date:'2027-01-01',name:'元日'},
+      {date:'2027-01-11',name:'成人の日'},
+      {date:'2027-02-11',name:'建国記念の日'},
+      {date:'2027-02-23',name:'天皇誕生日'},
+      {date:'2027-03-21',name:'春分の日'},
+      {date:'2027-03-22',name:'振替休日'},
+      {date:'2027-04-29',name:'昭和の日'},
+      {date:'2027-05-03',name:'憲法記念日'},
+      {date:'2027-05-04',name:'みどりの日'},
+      {date:'2027-05-05',name:'こどもの日'},
+      {date:'2027-07-19',name:'海の日'},
+      {date:'2027-08-11',name:'山の日'},
+      {date:'2027-09-20',name:'敬老の日'},
+      {date:'2027-09-23',name:'秋分の日'},
+      {date:'2027-10-11',name:'スポーツの日'},
+      {date:'2027-11-03',name:'文化の日'},
+      {date:'2027-11-23',name:'勤労感謝の日'}
+    ]
   };
-  return list.sort(sorters[sortKey]||sorters.added);
-}
-function countBy(fn){ const m=new Map(); (cards||[]).forEach(c=>{ [].concat(fn(c)).filter(Boolean).forEach(v=>m.set(v,(m.get(v)||0)+1)); }); return m; }
-function orderBy(keys, preferred){ return [...keys].sort((a,b)=>{ const ia=preferred.indexOf(a), ib=preferred.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib) || a.localeCompare(b,'ko'); }); }
 
-/* ---------- 그리기 ---------- */
-function render(){
-  if(!cards) return;
-  // 합계
-  $('stCount').innerHTML = `${cards.length}<small>장</small>`;
-  const fee=cards.reduce((s,c)=>s+(Number(c.annualFee)||0),0);
-  $('stFee').innerHTML = fee ? `${esc(won(fee))}<small>/년</small>` : '0';
+  // ---------- Storage layer (Firebase) ----------
+  // 기록은 Firestore의 users/{내 계정}/apps/leave 문서 하나에 저장돼요 (기존 아티팩트와 같은 구조).
+  // 보안 규칙으로 내 구글 계정만 읽고 쓸 수 있어요.
+  let fb = null, user = null, docRef = null, unsub = null, loaded = false;
+  let docCache = {};
+  let fbResolve, fbReject;
+  const fbReady = new Promise((res, rej)=>{ fbResolve = res; fbReject = rej; });
+  window.__fbLoaded = api => fbResolve(api);
+  window.__fbFailed = () => fbReject(new Error('load'));
+  if(window.__fbApi) fbResolve(window.__fbApi);
+  const IN_APP = /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp/i.test(navigator.userAgent);
+  const DEFAULT_SCENARIOS = [{id:uid(), name:'안1', entries:[]}, {id:uid(), name:'안2', entries:[]}];
+  const FIELDS = ['settings','overrides','holidays','holidaysJP','scenarios','activeScenario'];
 
-  // 고르기 목록 (실제로 있는 값만)
-  const issuers=orderBy(countBy(c=>c.issuer).keys(), ISSUERS), grades=orderBy(countBy(c=>c.grade).keys(), GRADES);
-  if(filt.issuer && !issuers.includes(filt.issuer)) filt.issuer='';
-  if(filt.grade && !grades.includes(filt.grade)) filt.grade='';
-  $('fIssuer').innerHTML = `<option value="">카드사 전체</option>` + issuers.map(v=>`<option ${v===filt.issuer?'selected':''}>${esc(v)}</option>`).join('');
-  $('fGrade').innerHTML = `<option value="">등급 전체</option>` + grades.map(v=>`<option ${v===filt.grade?'selected':''}>${esc(v)}</option>`).join('');
-  $('fIssuer').hidden = issuers.length<2 && !filt.issuer; $('fGrade').hidden = grades.length<2 && !filt.grade;
+  function todayLocal(){ const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
 
-  const nets=countBy(c=>normNet(c.network)), tags=countBy(c=>[...new Set((c.tags||[]).map(parentOf))]);
-  if(filt.network && !nets.has(filt.network)) filt.network='';
-  if(filt.tag && !tags.has(filt.tag)) filt.tag='';
-  const chipRow=(label,map,order,key)=> map.size ? `<span class="lbl">${label}</span>` + orderBy(map.keys(),order).map(v=>
-    `<button type="button" class="chip" data-f="${key}" data-v="${esc(v)}" aria-pressed="${filt[key]===v}">${esc(v)}<b>${map.get(v)}</b></button>`).join('') : '';
-  $('netChips').innerHTML = chipRow('결제망', nets, NETWORKS, 'network');
-  const anyFree=(cards||[]).some(hasFree);
-  if(!anyFree) filt.free=false;
-  $('tagChips').innerHTML = chipRow('혜택', tags, TAGS, 'tag') + (anyFree ? `<button type="button" class="chip free-chip" data-freechip aria-pressed="${filt.free}">무실적만</button>` : '');
-
-  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.view===view)));
-  $('sortSel').value = sortKey;
-
-  const list=visibleCards();
-  const filtered = filt.issuer||filt.grade||filt.network||filt.tag||filt.free||filt.q.trim();
-  $('resultNote').innerHTML = cards.length && filtered ? `${list.length}장 보는 중 (전체 ${cards.length}장)<button type="button" class="link-btn" id="clearFilters">거르기 지우기</button>` : '';
-
-  const root=$('list');
-  if(!cards.length){ root.innerHTML=`<div class="empty">아직 등록한 카드가 없어요.<br><b>+ 카드 추가</b>로 첫 카드를 넣어보세요.</div>`; return; }
-  if(!list.length){ root.innerHTML=`<div class="empty">조건에 맞는 카드가 없어요.</div>`; return; }
-  root.innerHTML = view==='table' ? tableHtml(list) : `<div class="cards">${list.map(tileHtml).join('')}</div>`;
-}
-
-function tileHtml(c){
-  const lines=benefitLines(c), open=openTiles.has(c.id), shown=open?lines:lines.slice(0,3);
-  const net=normNet(c.network), img=safeImg(c.image);
-  const sub=[c.issuer,c.grade,net].filter(Boolean).join(' · ');
-  return `<article class="tile">
-    ${img ? `<div class="face photo"><img src="${img}" alt="${esc(c.name||'')} 카드 이미지" loading="lazy"></div>` : `<div class="face" style="--c:${esc(colorOf(c))}">
-      <div class="row"><span class="issuer">${esc(c.issuer||'')}</span><span class="grade">${esc(c.grade||'')}</span></div>
-      <div class="chipimg" aria-hidden="true"></div>
-      <div class="row" style="align-items:flex-end;"><span class="name">${esc(c.name||'')}</span>${net?`<span class="net">${esc(net)}</span>`:''}</div>
-    </div>`}
-    <div class="body">
-      ${img ? `<div class="ctitle"><b>${esc(c.name||'')}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>` : ''}
-      <div class="kv"><div><div class="k">연회비</div><div class="v">${esc(won(c.annualFee))}</div></div><div><div class="k">전월 실적</div><div class="v">${esc(spendShort(c))}</div></div></div>
-      ${tierTableHtml(c)}
-      ${tagsHtml(c)}
-      ${shown.length?`<ul class="benefits">${shown.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
-      ${lines.length>3?`<button type="button" class="more" data-more="${esc(c.id)}">${open?'접기':`혜택 ${lines.length-3}개 더 보기`}</button>`:''}
-      ${c.memo?`<div class="memo">${esc(c.memo)}</div>`:''}
-      <div class="tile-foot"><button type="button" class="btn" data-edit="${esc(c.id)}">수정</button></div>
-    </div>
-  </article>`;
-}
-function tierTableHtml(c){
-  const t=tiersOf(c);
-  if(!t.length || (t.length===1 && t[0].limit==null && !t[0].note)) return '';
-  return `<table class="tier-tbl"><thead><tr><th>전월 실적</th><th>혜택 한도</th></tr></thead><tbody>${t.map(x=>
-    `<tr><td>${esc(minLabel(x.min))}</td><td><span class="amt">${x.limit!=null?esc(won(x.limit)):'—'}</span>${x.note?`<span class="tnote">${esc(x.note)}</span>`:''}</td></tr>`).join('')}</tbody></table>`;
-}
-function tableHtml(list){
-  const th=(label,key,cls='')=>{
-    if(!key) return `<th class="${cls}">${label}</th>`;
-    const asc=key+'-asc', desc=key+'-desc', simple=(key==='name'||key==='issuer');
-    const on = simple ? sortKey===key : (sortKey===asc||sortKey===desc);
-    const next = simple ? key : (sortKey===asc?desc:asc);
-    const arrow = !on ? '' : simple ? ' ↑' : (sortKey===asc?' ↑':' ↓');
-    return `<th class="${cls}"><button type="button" data-sort="${next}" ${on?'aria-sort="'+(arrow.includes('↓')?'descending':'ascending')+'"':''}>${label}${arrow}</button></th>`;
-  };
-  return `<div class="table-wrap"><table class="tbl"><thead><tr>
-    ${th('카드','name')}${th('카드사','issuer')}${th('결제망')}${th('등급')}${th('연회비','fee','num')}${th('전월 실적 · 혜택 한도','spend')}${th('혜택 분야')}${th('혜택')}${th('비고')}<th></th>
-  </tr></thead><tbody>${list.map(c=>`<tr>
-    <td><div class="cname">${safeImg(c.image) ? `<img class="thumb" src="${safeImg(c.image)}" alt="">` : `<span class="dotc" style="background:${esc(colorOf(c))}"></span>`}${esc(c.name||'')}</div></td>
-    <td>${esc(c.issuer||'')}</td><td>${esc(normNet(c.network))}</td><td>${esc(c.grade||'')}</td>
-    <td class="num">${esc(won(c.annualFee))}</td><td class="pre">${esc(tiersOf(c).map(tierText).join('\n')||'—')}</td>
-    <td>${tagsHtml(c)}</td>
-    <td class="pre">${esc(benefitLines(c).join('\n'))}</td><td class="pre">${esc(c.memo||'')}</td>
-    <td><button type="button" class="edit" data-edit="${esc(c.id)}">수정</button></td>
-  </tr>`).join('')}</tbody></table></div>`;
-}
-
-/* ---------- 입력 ---------- */
-let formTags=new Set(), formColor='';
-// 카드 이미지: 고른 사진을 이 기기에서 가로 640px 이하로 줄여서 카드 정보와 함께 저장해요
-let formImage='', imgSource=null, imgTurns=0, imgObjUrl=null;
-const IMG_MAX_W = 640, IMG_MAX_CHARS = 600000;
-function loadImg(src){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=src; }); }
-function encodeCard(im, turns){
-  const rot=((turns%4)+4)%4, sw=im.naturalWidth, sh=im.naturalHeight;
-  const ow = rot%2 ? sh : sw, oh = rot%2 ? sw : sh;
-  const k=Math.min(1, IMG_MAX_W/ow), w=Math.max(1,Math.round(ow*k)), h=Math.max(1,Math.round(oh*k));
-  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
-  const g=cv.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,w,h);
-  g.translate(w/2,h/2); g.rotate(rot*Math.PI/2); g.drawImage(im, -sw*k/2, -sh*k/2, sw*k, sh*k);
-  let type='image/webp', url=cv.toDataURL(type, 0.82);
-  if(!url.startsWith('data:image/webp')){ type='image/jpeg'; url=cv.toDataURL(type, 0.82); }
-  for(let q=0.7; url.length>IMG_MAX_CHARS && q>0.3; q-=0.1) url=cv.toDataURL(type, q);
-  return url;
-}
-function drawImgPrev(){
-  const el=$('imgPrev');
-  el.style.backgroundImage = formImage ? `url("${formImage}")` : '';
-  el.classList.toggle('has', !!formImage);
-  el.textContent = formImage ? '' : '이미지 없음';
-  $('imgRotate').hidden = !formImage; $('imgRemove').hidden = !formImage;
-  $('imgPickBtn').textContent = formImage ? '다른 사진' : '사진 선택';
-}
-function resetImg(c){
-  formImage = safeImg(c && c.image); imgSource=null; imgTurns=0; $('imgErr').textContent=''; $('iImage').value='';
-  if(imgObjUrl){ URL.revokeObjectURL(imgObjUrl); imgObjUrl=null; }
-  drawImgPrev();
-}
-$('imgPickBtn').addEventListener('click', ()=>$('iImage').click());
-$('iImage').addEventListener('change', async ev=>{
-  const f=ev.target.files && ev.target.files[0]; if(!f) return;
-  $('imgErr').textContent='';
-  if(!f.type.startsWith('image/')){ $('imgErr').textContent='이미지 파일만 넣을 수 있어요.'; return; }
-  try{
-    if(imgObjUrl) URL.revokeObjectURL(imgObjUrl);
-    imgObjUrl=URL.createObjectURL(f);
-    const im=await loadImg(imgObjUrl);
-    imgSource=im; imgTurns = im.naturalHeight > im.naturalWidth*1.1 ? 3 : 0;   // 세로 카드는 왼쪽으로 눕혀요
-    formImage=encodeCard(im, imgTurns);
-    if(formImage.length>IMG_MAX_CHARS*1.5){ formImage=''; $('imgErr').textContent='이미지가 너무 커요. 다른 이미지를 골라주세요.'; }
-    drawImgPrev();
-  }catch(e){ console.error(e); $('imgErr').textContent='이 파일은 열 수 없어요. PNG·JPG 이미지를 골라주세요.'; }
-  finally{ ev.target.value=''; }
-});
-$('imgRotate').addEventListener('click', async ()=>{
-  if(!formImage) return;
-  try{
-    if(!imgSource){ imgSource=await loadImg(formImage); imgTurns=0; }
-    imgTurns=(imgTurns+1)%4; formImage=encodeCard(imgSource, imgTurns); drawImgPrev();
-  }catch(e){ console.error(e); }
-});
-$('imgRemove').addEventListener('click', ()=>{ formImage=''; imgSource=null; imgTurns=0; drawImgPrev(); });
-let formRates={};
-function rateRowHtml(t){
-  const r=formRates[t]||{}, u=r.u||defaultUnit(t);
-  return `<div class="rate-row${isSubTag(t)?' sub':''}" data-tag="${esc(t)}">
-    <span class="rtag" title="${esc(t)}">${esc(tagLabel(t))}</span>
-    <input class="r-v" inputmode="decimal" placeholder="숫자" value="${r.v!=null?esc(r.v):''}" aria-label="${esc(t)} 혜택 숫자">
-    <select class="r-u" aria-label="${esc(t)} 혜택 단위">${UNITS.map(([k,l])=>`<option value="${k}" ${k===u?'selected':''}>${l}</option>`).join('')}</select>
-    <input class="r-note" maxlength="40" placeholder="조건 (선택) 예: 스타벅스, 월 4회" value="${esc(r.note||'')}" aria-label="${esc(t)} 혜택 조건">
-    <button type="button" class="r-free" aria-pressed="${!!r.free}" title="전월 실적을 못 채워도 받는 혜택이면 '무실적'으로 바꿔주세요">${r.free?'무실적':'실적 필요'}</button>
-  </div>`;
-}
-function drawRateRows(){
-  const sel=sortTags([...formTags]);
-  const headed=new Set();
-  $('rateRows').innerHTML=sel.map(t=>{
-    // 상위 분야를 안 고르고 세부만 골랐으면, 세부 위에 상위 이름만 적어줘요
-    let head='';
-    if(isSubTag(t)){ const p=parentOf(t); if(!formTags.has(p) && !headed.has(p)){ headed.add(p); head=`<div class="rate-head">${esc(p)}</div>`; } }
-    return head + rateRowHtml(t);
-  }).join('');
-  $('rateHint').hidden=!sel.length;
-}
-function syncRate(row){
-  const t=row.dataset.tag, raw=row.querySelector('.r-v').value.replace(/[^0-9.]/g,'');
-  const v = raw==='' || isNaN(parseFloat(raw)) ? null : parseFloat(raw);
-  formRates[t]={v, u:row.querySelector('.r-u').value, note:row.querySelector('.r-note').value.trim(), free:row.querySelector('.r-free').getAttribute('aria-pressed')==='true'};
-}
-function drawTagPick(){
-  const extra=[...formTags].filter(t=>!TAGS.includes(t) && !isSubTag(t));
-  $('tagPick').innerHTML=[...TAGS,...extra].map(t=>`<button type="button" class="chip" data-tag="${esc(t)}" aria-pressed="${formTags.has(t)}">${esc(t)}</button>`).join('');
-  // 상위 분야(영화)를 골랐거나 세부가 하나라도 있으면 세부 고르기를 보여줘요
-  $('subPick').innerHTML=Object.entries(SUBTAGS).filter(([p,subs])=>formTags.has(p) || subs.some(x=>formTags.has(p+SUBSEP+x))).map(([p,subs])=>
-    `<div class="sub-row"><span class="lbl">${esc(p)} 세부 (선택)</span>${subs.map(x=>{ const t=p+SUBSEP+x; return `<button type="button" class="chip" data-tag="${esc(t)}" aria-pressed="${formTags.has(t)}">${esc(x)}</button>`; }).join('')}</div>`).join('');
-}
-function drawSwatches(){
-  $('swatches').innerHTML=COLORS.map(([c,n])=>`<button type="button" class="swatch" data-color="${c}" style="background:${c}" aria-label="${n}" title="${n}" aria-pressed="${formColor===c}"></button>`).join('');
-}
-function tierRowHtml(t){
-  t=t||{};
-  return `<div class="tier-row">
-    <div class="tin"><input class="t-min" inputmode="numeric" placeholder="실적 예: 300,000" value="${t.min!=null?commas(t.min):''}" aria-label="전월 실적 (원)"><span>원 이상</span></div>
-    <div class="tin"><input class="t-limit" inputmode="numeric" placeholder="한도 예: 10,000" value="${t.limit!=null?commas(t.limit):''}" aria-label="혜택 한도 (원)"><span>원 한도</span></div>
-    <input class="t-note" maxlength="30" placeholder="메모 (선택) 예: 통합 할인" value="${esc(t.note||'')}" aria-label="메모">
-    <button type="button" class="t-del" aria-label="이 단계 삭제" title="이 단계 삭제">✕</button>
-  </div>`;
-}
-function drawTierRows(list){ $('tierRows').innerHTML = (list||[]).map(tierRowHtml).join(''); }
-function readTiers(){
-  const out=[];
-  for(const row of $('tierRows').querySelectorAll('.tier-row')){
-    const min=num(row.querySelector('.t-min').value), limit=num(row.querySelector('.t-limit').value), note=row.querySelector('.t-note').value.trim();
-    if(min==null && limit==null && !note) continue;          // 빈 줄은 무시
-    if(min==null) return {error: row.querySelector('.t-min')}; // 한도만 있고 실적이 없으면 다시 입력
-    out.push({min, limit, note});
+  function fbErrText(e){
+    const c = (e && e.code) || '';
+    if(c==='auth/popup-blocked') return '로그인 창이 막혔어요. 브라우저에서 이 사이트의 팝업을 허용한 뒤 다시 눌러주세요.';
+    if(c==='auth/popup-closed-by-user' || c==='auth/cancelled-popup-request') return '로그인 창이 닫혔어요. 다시 눌러주세요.';
+    if(c==='auth/unauthorized-domain') return 'Firebase 승인된 도메인에 bae4021.github.io가 없어요.';
+    if(c==='auth/network-request-failed' || c==='unavailable') return '인터넷 연결을 확인해주세요.';
+    if(c==='resource-exhausted') return '오늘 무료 사용 한도를 다 썼어요. 기록은 이 기기에 보관돼 있고, 한국 시간 오후 4~5시쯤 한도가 초기화되면 자동으로 저장돼요.';
+    if(c==='permission-denied') return '이 계정은 열 수 없거나, Firestore 보안 규칙이 아직 바뀌지 않았어요. 로그인한 계정과 보안 규칙을 확인해주세요.';
+    return (e && e.message) || String(e || '알 수 없는 오류');
   }
-  out.sort((a,b)=>a.min-b.min);
-  return {tiers: out};
-}
-function openForm(c){
-  editingId = c ? c.id : null;
-  $('formTitle').textContent = c ? '카드 수정' : '카드 추가';
-  $('saveBtn').textContent = c ? '수정 저장' : '추가하기';
-  $('delBtn').hidden = !c; resetDel();
-  $('iName').value=c?.name||''; $('iIssuer').value=c?.issuer||''; $('iNet').value=c?normNet(c.network):''; $('iGrade').value=c?.grade||'';
-  $('iFee').value=c&&c.annualFee!=null?commas(c.annualFee):''; drawTierRows(c ? tiersOf(c) : []);
-  $('iBenefits').value=c?.benefits||''; $('iMemo').value=c?.memo||'';
-  formTags=new Set(normTags(c?.tags)); formColor=c?.color||''; resetImg(c);
-  formRates=JSON.parse(JSON.stringify((c&&c.rates)||{}));
-  drawTagPick(); drawRateRows(); drawSwatches();
-  $('form').hidden=false; $('addBtn').hidden=true;
-  $('form').scrollIntoView({behavior:'smooth', block:'start'});
-  $('iName').focus({preventScroll:true});
-}
-function closeForm(){ $('form').hidden=true; $('addBtn').hidden=false; editingId=null; resetDel(); }
-let delArmed=false, delTimer=null;
-function resetDel(){ delArmed=false; clearTimeout(delTimer); $('delBtn').textContent='삭제'; }
 
-$('form').addEventListener('submit', ev=>{
-  ev.preventDefault();
-  const name=$('iName').value.trim();
-  if(!name){ $('iName').focus(); return; }
-  const tr=readTiers();
-  if(tr.error){ tr.error.focus(); tr.error.placeholder='실적을 입력해주세요'; return; }
-  const old = editingId ? (cards||[]).find(x=>x.id===editingId) : null;
-  const c={
-    id: old ? old.id : uid(),
-    name, issuer:$('iIssuer').value.trim(), network:normNet($('iNet').value), grade:$('iGrade').value.trim(),
-    annualFee:num($('iFee').value), tiers:tr.tiers, prevSpend:tr.tiers.length ? tr.tiers[0].min : null,
-    tags:sortTags([...formTags]), rates:Object.fromEntries([...formTags].map(t=>[t,formRates[t]]).filter(([,r])=>r && (r.v!=null || r.note || r.free))), benefits:$('iBenefits').value.replace(/\s+$/,''), memo:$('iMemo').value.trim(),
-    color: formColor || (old&&old.color) || '',
-    image: formImage || '',
-    createdAt: old ? (old.createdAt||Date.now()) : Date.now(), updatedAt: Date.now(),
+  function storeGet(key, fallback){
+    return (docCache && key in docCache) ? docCache[key] : fallback;
+  }
+  // 화면은 바로 바뀌고, 저장은 뒤에서 해요. 인터넷이 끊겨 있으면 연결되는 대로 저장돼요.
+  function storeSet(key, val){
+    docCache[key] = val;
+    if(!docRef){ setSaveStatus('error'); return Promise.resolve(); }
+    setSaveStatus(pendingLong ? 'pending' : 'saving');
+    fb.setDoc(docRef, {[key]: val}, {mergeFields:[key]})
+      .then(()=>{ if(!pendingLong) setSaveStatus('saved'); })
+      .catch(e=>{ console.error('save failed', key, e); setSaveStatus('error', e); });
+    return Promise.resolve();
+  }
+
+  function setSaveStatus(kind, err){
+    const el = document.getElementById('saveStatus');
+    if(!el) return;
+    if(kind==='error'){
+      el.textContent = '저장 실패 — ' + (err ? fbErrText(err) : '로그인 상태를 확인해주세요');
+      el.className = 'save-status err';
+    } else if(kind==='saving'){
+      el.textContent = navigator.onLine ? '저장 중...' : '오프라인 · 연결되면 자동으로 저장돼요';
+      el.className = 'save-status warn';
+    } else if(kind==='loading'){
+      el.textContent = '불러오는 중...'; el.className = 'save-status warn';
+    } else if(kind==='login'){
+      el.textContent = '로그인이 필요해요'; el.className = 'save-status warn';
+    } else if(kind==='fatal'){
+      el.textContent = err; el.className = 'save-status err';
+    } else if(kind==='pending'){
+      el.textContent = '아직 서버에 저장되지 않았어요 · 이 기기에 보관 중이고, 연결되면 자동으로 저장돼요';
+      el.className = 'save-status warn';
+    } else if(kind==='saved'){
+      const d = new Date();
+      el.textContent = `계정에 기록 중 · ${pad2(d.getHours())}:${pad2(d.getMinutes())} 저장됨`;
+      el.className = 'save-status ok';
+    } else {
+      el.textContent = '계정에 기록 중 · 어느 기기에서든 그대로 보여요'; el.className = 'save-status ok';
+    }
+  }
+
+  function applyState(){
+    state.settings = storeGet('settings', DEFAULT_SETTINGS);
+    state.overrides = storeGet('overrides', {});
+    state.holidays = storeGet('holidays', DEFAULT_HOLIDAYS);
+    state.holidaysJP = storeGet('holidaysJP', DEFAULT_HOLIDAYS_JP);
+    state.scenarios = storeGet('scenarios', DEFAULT_SCENARIOS);
+    if(!Array.isArray(state.scenarios) || !state.scenarios.length) state.scenarios = DEFAULT_SCENARIOS;
+    state.scenarios.forEach(s=>{ if(!Array.isArray(s.entries)) s.entries = []; });
+    state.activeScenario = storeGet('activeScenario', state.scenarios[0].id);
+    if(!state.scenarios.find(s=>s.id===state.activeScenario)) state.activeScenario = state.scenarios[0].id;
+  }
+
+  function showApp(on){
+    document.getElementById('appLayout').hidden = !on;
+    document.getElementById('authBox').hidden = on;
+    document.querySelector('.year-picker').style.visibility = on ? '' : 'hidden';
+  }
+  function renderAccount(){
+    const el = document.getElementById('acct');
+    el.innerHTML = user
+      ? `${(user.email||'').replace(/[<>&"]/g,'')} 계정에 저장돼요 · <button class="link-btn" id="logoutBtn">로그아웃</button>`
+      : '';
+  }
+  // 입력 중인 칸이 있으면 다른 기기에서 온 변경으로 화면을 다시 그리지 않아요
+  function isEditing(){
+    const a = document.activeElement;
+    return !!(a && (a.classList.contains('tab-name-input') || (a.closest && a.closest('.rule-grid, #overrideBody, .bk-box, #fBook'))));
+  }
+
+  async function login(){
+    const msg = document.getElementById('authMsg');
+    msg.textContent = '';
+    if(!fb){ msg.textContent = '아직 준비 중이에요. 잠시 후 다시 눌러주세요.'; return; }
+    try{
+      const p = new fb.GoogleAuthProvider();
+      p.setCustomParameters({prompt:'select_account'});
+      await fb.signInWithPopup(fb.auth, p);
+    }catch(e){ console.error(e); msg.textContent = fbErrText(e); }
+  }
+
+  // 서버에 아직 안 올라간 기록이 오래(10초) 남아 있으면 노란색으로 알려줘요
+  const PENDING_WARN_MS = window.__pendingWarnMs || 10000;
+  let pendingTimer = null, pendingLong = false;
+  function watchPending(has){
+    if(has){
+      if(!pendingTimer && !pendingLong) pendingTimer = setTimeout(()=>{ pendingTimer = null; pendingLong = true; setSaveStatus(navigator.onLine ? 'pending' : 'saving'); }, PENDING_WARN_MS);
+    }else{
+      const was = pendingLong;
+      clearTimeout(pendingTimer); pendingTimer = null; pendingLong = false;
+      if(was) setSaveStatus('saved');
+    }
+  }
+
+  function startStore(){
+    fb.onAuthStateChanged(fb.auth, u=>{
+      if(unsub){ unsub(); unsub = null; }
+      user = u || null; loaded = false; docRef = null; docCache = {};
+      renderAccount();
+      if(!user){ showApp(false); setSaveStatus('login'); return; }
+      document.getElementById('authBox').hidden = true;
+      document.getElementById('authMsg').textContent = '';
+      setSaveStatus('loading');
+      docRef = fb.doc(fb.db, 'users', user.uid, 'apps', 'leave');
+      unsub = fb.onSnapshot(docRef, {includeMetadataChanges:true}, snap=>{
+        watchPending(snap.metadata.hasPendingWrites);
+        if(loaded && snap.metadata.hasPendingWrites) return; // 방금 내가 바꾼 내용 (화면엔 이미 반영됨)
+        docCache = snap.exists() ? (snap.data() || {}) : {};
+        applyState();
+        if(!loaded){
+          loaded = true;
+          selectedYear = new Date().getFullYear();
+          selectedMonth = new Date().getMonth();
+          document.getElementById('fDate').value = todayLocal();
+          showApp(true);
+          setSaveStatus('ok');
+          render();
+          return;
+        }
+        if(!isEditing()) render();
+      }, err=>{
+        console.error('snapshot error', err);
+        setSaveStatus('error', err);
+        if(!loaded){   // 처음 불러오다 실패했을 때만 로그인 화면으로 (이미 보던 기록은 그대로 둬요)
+          showApp(false);
+          document.getElementById('authMsg').textContent = fbErrText(err);
+        }
+      });
+    });
+  }
+
+  // ---------- 백업 · 가져오기 ----------
+  function backupObj(){
+    return {app:'연차관리대장', exportedAt:new Date().toISOString(), data:{
+      settings:state.settings, overrides:state.overrides, holidays:state.holidays,
+      holidaysJP:state.holidaysJP, scenarios:state.scenarios, activeScenario:state.activeScenario
+    }};
+  }
+  async function copyBackup(){
+    const box = document.getElementById('backupText');
+    box.value = JSON.stringify(backupObj());
+    box.hidden = false; box.focus(); box.select();
+    let ok = false;
+    try{ await navigator.clipboard.writeText(box.value); ok = true; }catch(_){
+      try{ ok = document.execCommand('copy'); }catch(__){}
+    }
+    const n = state.scenarios.reduce((s,x)=>s+((x.entries||[]).length),0);
+    document.getElementById('backupMsg').textContent = ok
+      ? `시나리오 ${state.scenarios.length}개 · 사용 내역 ${n}건을 복사했어요.`
+      : '아래 상자의 내용을 전부 선택해서 복사해주세요.';
+  }
+  let importArmed = false, importTimer = null;
+  async function importBackup(){
+    const btn = document.getElementById('importBtn'), msg = document.getElementById('importMsg');
+    const raw = document.getElementById('importText').value.trim();
+    if(!docRef){ msg.textContent = '먼저 로그인해주세요.'; return; }
+    if(!raw){ msg.textContent = '기존 연차관리대장에서 복사한 백업 코드를 붙여넣어주세요.'; return; }
+    let data;
+    try{
+      const obj = JSON.parse(raw);
+      data = (obj && obj.data) ? obj.data : obj;
+      if(!data || !Array.isArray(data.scenarios)) throw 0;
+    }catch(_){ msg.textContent = '백업 코드 형식이 아니에요. 처음부터 끝까지 다 붙여넣었는지 확인해주세요.'; return; }
+    const haveNow = ('scenarios' in docCache) && state.scenarios.some(s=>(s.entries||[]).length);
+    if(haveNow && !importArmed){
+      importArmed = true;
+      btn.textContent = '덮어쓰기';
+      msg.textContent = '지금 기록이 있어요. 한 번 더 누르면 가져온 내용으로 바뀌어요.';
+      clearTimeout(importTimer);
+      importTimer = setTimeout(()=>{ importArmed = false; btn.textContent = '가져오기'; }, 6000);
+      return;
+    }
+    importArmed = false; clearTimeout(importTimer); btn.textContent = '가져오기';
+    const clean = {};
+    FIELDS.forEach(k=>{ if(data[k] !== undefined) clean[k] = data[k]; });
+    docCache = clean; applyState(); render();
+    const n = state.scenarios.reduce((s,x)=>s+(x.entries||[]).length,0);
+    btn.disabled = true;
+    msg.textContent = '저장 중...';
+    try{
+      const saved = await Promise.race([fb.setDoc(docRef, clean).then(()=>true), new Promise(r=>setTimeout(()=>r(false), 15000))]);
+      msg.textContent = saved
+        ? `시나리오 ${state.scenarios.length}개 · 사용 내역 ${n}건을 가져왔어요 ✓`
+        : '가져왔어요. 인터넷이 느려서 저장이 늦어지고 있어요 — 연결되면 자동으로 저장돼요.';
+      document.getElementById('importText').value = '';
+      setSaveStatus('saved');
+    }catch(e){
+      console.error(e); msg.textContent = '가져오지 못했어요. ' + fbErrText(e);
+    }finally{ btn.disabled = false; }
+  }
+
+  function grantForYear(year){
+    const ov = state.overrides[year];
+    if(ov !== undefined && ov !== null && ov !== '') return Number(ov);
+    const s = state.settings;
+    let g = s.baseGrant + Math.floor((year - s.baseYear)/s.incEvery)*s.incAmount;
+    if(s.cap) g = Math.min(g, s.cap);
+    return Math.max(g, 0);
+  }
+
+  function usedMinutes(scenario, year){
+    return scenario.entries.filter(e=>e.date.slice(0,4)==String(year))
+      .reduce((sum,e)=>sum+e.minutes,0);
+  }
+  function fmtDays(mins){
+    const d = mins/480;
+    const r = Math.round(d*100)/100;
+    return (r % 1 === 0) ? r.toFixed(0) : r.toString();
+  }
+
+  function activeScenario(){ return state.scenarios.find(s=>s.id===state.activeScenario); }
+
+  // ---------- Rendering ----------
+  function renderYearSelect(){
+    const sel = document.getElementById('ySelect');
+    const years = new Set();
+    for(let y=selectedYear-3; y<=selectedYear+5; y++) years.add(y);
+    state.scenarios.forEach(s=>s.entries.forEach(e=>years.add(Number(e.date.slice(0,4)))));
+    const sorted = Array.from(years).sort((a,b)=>a-b);
+    sel.innerHTML = sorted.map(y=>`<option value="${y}" ${y===selectedYear?'selected':''}>${y}년</option>`).join('');
+  }
+
+  function renderTabs(){
+    const wrap = document.getElementById('tabs');
+    wrap.innerHTML = '';
+    state.scenarios.forEach(s=>{
+      const tab = document.createElement('div');
+      tab.className = 'tab' + (s.id===state.activeScenario ? ' active' : '');
+      tab.dataset.id = s.id;
+      const label = document.createElement('span');
+      label.textContent = s.name;
+      tab.appendChild(label);
+      const del = document.createElement('span');
+      del.className = 'del';
+      del.textContent = '✕';
+      del.title = '삭제';
+      del.addEventListener('click', async (ev)=>{
+        ev.stopPropagation();
+        if(del.dataset.confirm==='1'){
+          state.scenarios = state.scenarios.filter(x=>x.id!==s.id);
+          if(state.scenarios.length===0) state.scenarios.push({id:uid(),name:'안1',entries:[]});
+          if(state.activeScenario===s.id) state.activeScenario = state.scenarios[0].id;
+          await storeSet('scenarios', state.scenarios);
+          await storeSet('activeScenario', state.activeScenario);
+          render();
+        } else {
+          del.dataset.confirm='1'; del.textContent='확인';
+          setTimeout(()=>{ del.dataset.confirm='0'; del.textContent='✕'; }, 2500);
+        }
+      });
+      tab.appendChild(del);
+      tab.addEventListener('click', async ()=>{
+        state.activeScenario = s.id;
+        await storeSet('activeScenario', state.activeScenario);
+        render();
+      });
+      tab.addEventListener('dblclick', (ev)=>{
+        ev.stopPropagation();
+        const input = document.createElement('input');
+        input.className = 'tab-name-input';
+        input.value = s.name;
+        tab.innerHTML = '';
+        tab.appendChild(input);
+        input.focus();
+        input.select();
+        const commit = async ()=>{
+          s.name = input.value.trim() || s.name;
+          await storeSet('scenarios', state.scenarios);
+          render();
+        };
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') input.blur(); });
+      });
+      wrap.appendChild(tab);
+    });
+    const addTab = document.createElement('div');
+    addTab.className = 'tab-add';
+    addTab.textContent = '+';
+    addTab.title = '시나리오(안) 추가';
+    addTab.addEventListener('click', async ()=>{
+      const n = state.scenarios.length + 1;
+      const ns = {id:uid(), name:'안'+n, entries:[]};
+      state.scenarios.push(ns);
+      state.activeScenario = ns.id;
+      await storeSet('scenarios', state.scenarios);
+      await storeSet('activeScenario', state.activeScenario);
+      render();
+    });
+    wrap.appendChild(addTab);
+  }
+
+  function renderSummary(){
+    const sc = activeScenario();
+    const grant = grantForYear(selectedYear);
+    const usedMin = usedMinutes(sc, selectedYear);
+    const usedDays = usedMin/480;
+    const remaining = grant - usedDays;
+    const box = document.getElementById('summary');
+    box.innerHTML = `
+      <div class="stamp ${remaining<0?'neg':''}">
+        <div class="lbl">잔여</div>
+        <div class="num">${fmtDays(remaining*480)}</div>
+        <div class="unit">일 남음</div>
+      </div>
+      <div class="stat"><div class="k">부여 연차 (${selectedYear}년)</div><div class="v">${grant} <small>일</small></div></div>
+      <div class="stat"><div class="k">사용 연차</div><div class="v">${fmtDays(usedMin)} <small>일 (${usedMin}분)</small></div></div>
+      <div class="stat"><div class="k">현재 시나리오</div><div class="v" style="font-family:var(--serif);font-size:16px;">${sc.name}</div></div>
+    `;
+    document.getElementById('ledgerTitle').textContent = `사용 내역 — ${sc.name} · ${selectedYear}년`;
+  }
+
+  function typeLabel(e){
+    if(e.minutes===480) return '종일';
+    if(e.minutes===240 && e.half==='am') return '오전 반차';
+    if(e.minutes===240 && e.half==='pm') return '오후 반차';
+    const h = Math.floor(e.minutes/60), m = e.minutes%60;
+    return `${h}시간${m?' '+m+'분':''}`;
+  }
+
+  // ---------- 예약 (항공·호텔·이동수단) ----------
+  const BK_KINDS = [['flight','✈','항공'],['hotel','🏨','호텔'],['move','🚆','이동수단']];
+  const BK_STATES = [['none','해당 없음'],['need','예약 필요'],['done','예약 완료']];
+  const BK_FIELDS = {
+    flight:[['dep','출발일','date'],['arr','도착일','date'],['airline','항공사','text','예: 대한항공'],['time','탑승 시간','time'],['agency','예약처','text','예: 트립닷컴']],
+    hotel:[['in','체크인','date'],['out','체크아웃','date'],['name','호텔명','text'],['agency','예약처','text','예: 아고다']],
+    move:[['type','수단','text','예: KTX, 렌터카'],['dep','출발일','date'],['arr','도착일','date'],['time','시간','time'],['agency','예약처','text']]
   };
-  closeForm();
-  putCard(c);
-  showToast(old ? `'${short(c.name)}' 수정했어요` : `'${short(c.name)}' 추가했어요`, old ? ()=>putCard(old) : ()=>removeCard(c.id));
-});
-$('delBtn').addEventListener('click', ()=>{
-  if(!editingId) return;
-  if(!delArmed){ delArmed=true; $('delBtn').textContent='한 번 더 누르면 삭제'; delTimer=setTimeout(resetDel,3000); return; }
-  const old=(cards||[]).find(x=>x.id===editingId);
-  closeForm();
-  if(!old) return;
-  removeCard(old.id);
-  showToast(`'${short(old.name)}' 삭제했어요`, ()=>putCard(old));
-});
-$('cancelBtn').addEventListener('click', closeForm);
-$('addBtn').addEventListener('click', ()=>openForm(null));
-$('iFee').addEventListener('input', ev=>{ const n=num(ev.target.value); ev.target.value = n==null ? '' : commas(n); });
-$('tierRows').addEventListener('input', ev=>{ if(!ev.target.matches('.t-min,.t-limit')) return; const n=num(ev.target.value); ev.target.value = n==null ? '' : commas(n); });
-$('tierRows').addEventListener('click', ev=>{ const b=ev.target.closest('.t-del'); if(b) b.closest('.tier-row').remove(); });
-$('addTierBtn').addEventListener('click', ()=>{ $('tierRows').insertAdjacentHTML('beforeend', tierRowHtml()); const rows=$('tierRows').querySelectorAll('.t-min'); rows[rows.length-1].focus(); });
-function onTagPick(ev){ const b=ev.target.closest('[data-tag]'); if(!b) return; const t=b.dataset.tag; formTags.has(t)?formTags.delete(t):formTags.add(t); drawTagPick(); drawRateRows(); }
-$('tagPick').addEventListener('click', onTagPick);
-$('subPick').addEventListener('click', onTagPick);
-$('rateRows').addEventListener('input', ev=>{ const row=ev.target.closest('.rate-row'); if(row) syncRate(row); });
-$('rateRows').addEventListener('click', ev=>{
-  const b=ev.target.closest('.r-free'); if(!b) return;
-  const on=b.getAttribute('aria-pressed')!=='true';
-  b.setAttribute('aria-pressed', String(on)); b.textContent = on ? '무실적' : '실적 필요';
-  syncRate(b.closest('.rate-row'));
-});
-$('rateRows').addEventListener('change', ev=>{ const row=ev.target.closest('.rate-row'); if(row) syncRate(row); });
-$('swatches').addEventListener('click', ev=>{ const b=ev.target.closest('[data-color]'); if(!b) return; formColor = formColor===b.dataset.color ? '' : b.dataset.color; drawSwatches(); });
+  const BK_SYM = {none:'–', need:'⚠', done:'✓', unset:'?'};
+  function bkEsc(v){ return String(v==null?'':v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function bkState(e,k){ const x = e && e.trip && e.trip[k]; return x && x.s ? x.s : 'unset'; }
+  // 오늘 이후 일정 중에서 '미확인'이거나 '예약 필요'인 항목이 있으면 경고
+  function bkWarnKinds(e){
+    if(!e.date || e.date < todayLocal()) return [];
+    return BK_KINDS.map(x=>x[0]).filter(k=>{ const st = bkState(e,k); return st==='unset' || st==='need'; });
+  }
+  function bkEditorHtml(trip){
+    return BK_KINDS.map(([k,ico,lab])=>{
+      const x = trip[k] || {}, st = x.s || '';
+      const seg = BK_STATES.map(([v,l])=>`<button type="button" class="bk-opt${st===v?' on '+v:''}" data-kind="${k}" data-state="${v}" aria-pressed="${st===v}">${l}</button>`).join('');
+      const fields = (st==='need'||st==='done')
+        ? `<div class="bk-fields">${BK_FIELDS[k].map(([f,l,t,ph])=>`<label class="bk-f"><span>${l}</span><input type="${t}" data-kind="${k}" data-f="${f}" value="${bkEsc(x[f])}"${ph?` placeholder="${ph}"`:''}></label>`).join('')}</div>`
+        : '';
+      return `<div class="bk-card ${st?'st-'+st:'st-unset'}"><div class="bk-head"><span class="bk-ttl">${ico} ${lab}</span><span class="bk-seg">${seg}</span></div>${fields}</div>`;
+    }).join('');
+  }
+  // box 안에 항공·호텔·이동수단 입력칸을 만들어요. 같은 버튼을 다시 누르면 선택이 풀려요.
+  function mountBooking(box, getTrip, getDate, onChange){
+    const draw = ()=>{ box.innerHTML = bkEditorHtml(getTrip()); };
+    box.addEventListener('click', ev=>{
+      const b = ev.target.closest('.bk-opt'); if(!b) return;
+      const trip = getTrip(), k = b.dataset.kind, v = b.dataset.state;
+      const x = trip[k] || (trip[k] = {});
+      if(x.s===v) delete x.s; else x.s = v;
+      if(x.s && x.s!=='none'){ const d = getDate(); const df = BK_FIELDS[k].find(f=>f[2]==='date'); if(d && df && !x[df[0]]) x[df[0]] = d; }
+      draw(); onChange('state');
+    });
+    box.addEventListener('change', ev=>{
+      const i = ev.target.closest('input[data-f]'); if(!i) return;
+      const trip = getTrip(); const x = trip[i.dataset.kind] || (trip[i.dataset.kind] = {});
+      x[i.dataset.f] = i.value.trim(); onChange('field');
+    });
+    draw();
+    return draw;
+  }
+  function cleanTrip(t){
+    const o = {};
+    BK_KINDS.forEach(([k])=>{ const x = t[k]; if(x && x.s) o[k] = x.s==='none' ? {s:'none'} : Object.assign({}, x); });
+    return Object.keys(o).length ? o : null;
+  }
+  let formTrip = {};
+  const openBk = new Set();
+  function bkBadges(e){
+    const future = e.date >= todayLocal();
+    return BK_KINDS.map(([k,ico,lab])=>{
+      const st = bkState(e,k), label = {none:'해당 없음', need:'예약 필요', done:'예약 완료', unset:'확인 안 됨'}[st];
+      return `<span class="bk-b st-${st}${st==='unset'&&future?' warn':''}" title="${lab}: ${label}">${ico}<i>${BK_SYM[st]}</i></span>`;
+    }).join('');
+  }
+  function renderBkAlert(sc){
+    const box = document.getElementById('bkAlert');
+    const bad = sc.entries.map(e=>({e, w:bkWarnKinds(e)})).filter(x=>x.w.length).sort((a,b)=>a.e.date.localeCompare(b.e.date));
+    if(!bad.length){ box.hidden = true; box.innerHTML = ''; return; }
+    const names = {flight:'항공', hotel:'호텔', move:'이동수단'};
+    const cnt = {flight:0, hotel:0, move:0}; bad.forEach(x=>x.w.forEach(k=>cnt[k]++));
+    const parts = Object.keys(cnt).filter(k=>cnt[k]).map(k=>`${names[k]} ${cnt[k]}건`).join(' · ');
+    const dates = bad.slice(0,6).map(x=>x.e.date.slice(5)).join(', ') + (bad.length>6 ? ' 외' : '');
+    box.innerHTML = `⚠ <b>예약 확인이 필요한 일정 ${bad.length}건</b> (${parts})<br><span style="color:var(--ink-soft);">${dates} — 내역에서 '예약 ▾'를 눌러 체크해 주세요.</span>`;
+    box.hidden = false;
+  }
 
-/* ---------- 목록 동작 ---------- */
-$('list').addEventListener('click', ev=>{
-  const e=ev.target.closest('[data-edit]'); if(e){ const c=(cards||[]).find(x=>x.id===e.dataset.edit); if(c) openForm(c); return; }
-  const m=ev.target.closest('[data-more]'); if(m){ const id=m.dataset.more; openTiles.has(id)?openTiles.delete(id):openTiles.add(id); render(); return; }
-  const s=ev.target.closest('[data-sort]'); if(s){ sortKey=s.dataset.sort; try{localStorage.setItem('cards-sort',sortKey);}catch(_){} render(); }
-});
-function onChip(ev){ if(ev.target.closest('[data-freechip]')){ filt.free=!filt.free; render(); return; } const b=ev.target.closest('[data-f]'); if(!b) return; const k=b.dataset.f, v=b.dataset.v; filt[k] = filt[k]===v ? '' : v; render(); }
-$('netChips').addEventListener('click', onChip);
-$('tagChips').addEventListener('click', onChip);
-$('fIssuer').addEventListener('change', ev=>{ filt.issuer=ev.target.value; render(); });
-$('fGrade').addEventListener('change', ev=>{ filt.grade=ev.target.value; render(); });
-$('q').addEventListener('input', ev=>{ filt.q=ev.target.value; render(); });
-$('sortSel').addEventListener('change', ev=>{ sortKey=ev.target.value; try{localStorage.setItem('cards-sort',sortKey);}catch(_){} render(); });
-document.querySelector('.seg').addEventListener('click', ev=>{ const b=ev.target.closest('[data-view]'); if(!b) return; view=b.dataset.view; try{localStorage.setItem('cards-view',view);}catch(_){} render(); });
-$('resultNote').addEventListener('click', ev=>{ if(ev.target.id!=='clearFilters') return; Object.assign(filt,{issuer:'',grade:'',network:'',tag:'',q:'',free:false}); $('q').value=''; render(); });
+  function renderLedger(){
+    const sc = activeScenario();
+    const tbody = document.getElementById('ledgerBody');
+    tbody.innerHTML = '';
+    renderBkAlert(sc);
+    const years = Array.from(new Set(sc.entries.map(e=>e.date.slice(0,4)))).sort();
+    const relevantYears = years.includes(String(selectedYear)) ? [String(selectedYear)] : (years.length?years:[String(selectedYear)]);
+    // Show only selected year's entries, but note if scenario has other years
+    const entries = sc.entries.filter(e=>e.date.slice(0,4)===String(selectedYear)).sort((a,b)=>a.date.localeCompare(b.date));
+    if(entries.length===0){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="7">${selectedYear}년에 등록된 사용 내역이 없습니다.</td></tr>`;
+      return;
+    }
+    entries.forEach(e=>{
+      const d = new Date(e.date+'T00:00:00');
+      const tr = document.createElement('tr');
+      const warn = bkWarnKinds(e);
+      if(warn.length) tr.className = 'bk-warn';
+      tr.innerHTML = `
+        <td>${e.date}</td>
+        <td>${WEEKDAYS[d.getDay()]}</td>
+        <td>${typeLabel(e)}</td>
+        <td>${e.memo||''}</td>
+        <td class="bkc">${bkBadges(e)}<button type="button" class="bk-toggle" aria-expanded="${openBk.has(e.id)}">예약 ${openBk.has(e.id)?'▴':'▾'}</button></td>
+        <td class="num">${fmtDays(e.minutes)}</td>
+        <td class="del" title="삭제">✕</td>
+      `;
+      tr.querySelector('.bk-toggle').addEventListener('click', ()=>{
+        openBk.has(e.id) ? openBk.delete(e.id) : openBk.add(e.id);
+        renderLedger();
+      });
+      tr.querySelector('.del').addEventListener('click', async ()=>{
+        sc.entries = sc.entries.filter(x=>x.id!==e.id);
+        await storeSet('scenarios', state.scenarios);
+        render();
+      });
+      tbody.appendChild(tr);
+      if(openBk.has(e.id)){
+        const dt = document.createElement('tr');
+        dt.className = 'bk-detail';
+        dt.innerHTML = '<td colspan="7"><div class="bk-box"></div></td>';
+        tbody.appendChild(dt);
+        mountBooking(dt.querySelector('.bk-box'), ()=>e.trip || (e.trip = {}), ()=>e.date, async (what)=>{
+          if(e.trip && !cleanTrip(e.trip)) delete e.trip;
+          await storeSet('scenarios', state.scenarios);
+          if(what==='state'){ renderLedger(); renderCalendar(); }
+        });
+      }
+    });
+    const totalMin = entries.reduce((s,e)=>s+e.minutes,0);
+    const trSub = document.createElement('tr');
+    trSub.className = 'subtotal';
+    trSub.innerHTML = `<td colspan="5">${selectedYear}년 소계</td><td class="num">${fmtDays(totalMin)}</td><td></td>`;
+    tbody.appendChild(trSub);
+  }
 
-/* ---------- 알림 (되돌리기) ---------- */
-let toastTimer=null, toastUndo=null;
-function short(t){ t=String(t||''); return t.length>14 ? t.slice(0,14)+'…' : t; }
-function hideToast(){ $('toast').hidden=true; toastUndo=null; clearTimeout(toastTimer); }
-function showToast(msg, undo){ $('toastMsg').textContent=msg; $('toastUndo').hidden=!undo; toastUndo=undo||null; $('toast').hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(hideToast,6000); }
-$('toastUndo').addEventListener('click', ()=>{ const f=toastUndo; hideToast(); if(f) f(); });
+  function pad2(n){ return String(n).padStart(2,'0'); }
 
-/* ---------- 백업 ---------- */
-$('copyBackupBtn').addEventListener('click', async ()=>{
-  const box=$('backupText'); box.value=JSON.stringify({app:'카드 지갑', exportedAt:new Date().toISOString(), cards:cards||[]});
-  box.hidden=false; box.focus(); box.select();
-  let ok=false; try{ await navigator.clipboard.writeText(box.value); ok=true; }catch(_){ try{ ok=document.execCommand('copy'); }catch(__){} }
-  $('backupMsg').textContent = ok ? `카드 ${(cards||[]).length}장을 복사했어요.` : '아래 상자의 내용을 전부 선택해서 복사해주세요.';
-});
-$('importBtn').addEventListener('click', async ()=>{
-  const msg=$('importMsg'), raw=$('importText').value.trim();
-  if(!colRef){ msg.textContent='먼저 로그인해주세요.'; return; }
-  if(!raw){ msg.textContent='백업 코드를 붙여넣어주세요.'; return; }
-  let list; try{ const o=JSON.parse(raw); list=Array.isArray(o)?o:o.cards; if(!Array.isArray(list)) throw 0; }catch(_){ msg.textContent='백업 코드 형식이 아니에요.'; return; }
-  const have=new Set((cards||[]).map(c=>c.id));
-  const add=list.filter(c=>c&&c.id&&c.name&&!have.has(String(c.id)));
-  if(!add.length){ msg.textContent='새로 가져올 카드가 없어요 (이미 다 있어요).'; return; }
-  const batch=fb.writeBatch(fb.db);
-  add.forEach(c=>{ const {id,...data}=c; batch.set(fb.doc(colRef,String(id)), data); });
-  msg.textContent='가져오는 중...';
-  try{
-    const ok=await Promise.race([batch.commit().then(()=>true), new Promise(r=>setTimeout(()=>r(false),15000))]);
-    msg.textContent = ok ? `카드 ${add.length}장을 가져왔어요 ✓` : `카드 ${add.length}장을 가져왔어요. 서버 저장이 늦어지고 있어서, 연결되면 자동으로 저장돼요.`;
-    $('importText').value='';
-  }catch(e){ msg.textContent='가져오지 못했어요. '+fbErrText(e); }
-});
+  function renderCalendar(){
+    const label = document.getElementById('calLabel');
+    label.textContent = `${selectedYear}년 ${selectedMonth+1}월`;
 
-/* ---------- 시작 ---------- */
-$('dlIssuer').innerHTML=ISSUERS.map(v=>`<option value="${v}">`).join('');
-$('dlNet').innerHTML=NETWORKS.map(v=>`<option value="${v}">`).join('');
-$('dlGrade').innerHTML=GRADES.map(v=>`<option value="${v}">`).join('');
-$('loginBtn').addEventListener('click', login);
-$('acct').addEventListener('click', ev=>{ if(ev.target.id==='logoutBtn' && fb) fb.signOut(fb.auth); });
-if(IN_APP) $('inAppWarn').hidden=false;
-(async function init(){
-  setSync('loading');
-  try{ fb = await Promise.race([fbReady, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),20000))]); }
-  catch(e){ setSync('error','저장소 프로그램을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해주세요.'); return; }
-  startStore();
-})();
+    const yj = document.getElementById('calYearJump');
+    const yOpts = [];
+    for(let y=selectedYear-6; y<=selectedYear+6; y++) yOpts.push(y);
+    yj.innerHTML = yOpts.map(y=>`<option value="${y}" ${y===selectedYear?'selected':''}>${y}</option>`).join('');
+    const mj = document.getElementById('calMonthJump');
+    mj.innerHTML = Array.from({length:12},(_,i)=>i).map(m=>`<option value="${m}" ${m===selectedMonth?'selected':''}>${m+1}</option>`).join('');
+
+    const wdWrap = document.getElementById('calWeekdays');
+    wdWrap.innerHTML = WEEKDAYS.map((w,i)=>`<div class="cal-wd ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('');
+
+    const daysWrap = document.getElementById('calDays');
+    daysWrap.innerHTML = '';
+    const first = new Date(selectedYear, selectedMonth, 1);
+    const startWeekday = first.getDay();
+    const numDays = new Date(selectedYear, selectedMonth+1, 0).getDate();
+    const prevNumDays = new Date(selectedYear, selectedMonth, 0).getDate();
+    const totalCells = Math.ceil((startWeekday+numDays)/7)*7;
+    const sc = activeScenario();
+    const todayStr = todayLocal();
+
+    for(let i=0;i<totalCells;i++){
+      const dayOffset = i - startWeekday + 1;
+      let cellYear = selectedYear, cellMonth = selectedMonth, cellDay = dayOffset, other = false;
+      if(dayOffset < 1){
+        cellDay = prevNumDays + dayOffset;
+        cellMonth = selectedMonth - 1;
+        if(cellMonth < 0){ cellMonth = 11; cellYear--; }
+        other = true;
+      } else if(dayOffset > numDays){
+        cellDay = dayOffset - numDays;
+        cellMonth = selectedMonth + 1;
+        if(cellMonth > 11){ cellMonth = 0; cellYear++; }
+        other = true;
+      }
+      const iso = `${cellYear}-${pad2(cellMonth+1)}-${pad2(cellDay)}`;
+      const wd = new Date(cellYear, cellMonth, cellDay).getDay();
+      const hlist = state.holidays[cellYear] || [];
+      const hday = hlist.find(h=>h.date===iso);
+      const jplist = state.holidaysJP[cellYear] || [];
+      const jpday = jplist.find(h=>h.date===iso);
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell'
+        + (other?' other-month':'')
+        + (wd===0?' sun':wd===6?' sat':'')
+        + (hday?' holiday':'')
+        + (iso===todayStr?' today':'')
+        + (iso===selectedDate?' selected':'');
+      cell.dataset.date = iso;
+
+      const entries = sc.entries.filter(e=>e.date===iso);
+
+      let html = `<div class="cal-daynum">${cellDay}</div>`;
+      if(hday) html += `<div class="cal-holiday">${hday.name}</div>`;
+      if(jpday) html += `<div class="cal-holiday-jp" title="일본 공휴일">🇯🇵 ${jpday.name}</div>`;
+      entries.forEach(e=>{
+        html += `<span class="cal-chip" data-id="${e.id}">${bkWarnKinds(e).length?'<span class="cal-warn" title="예약 확인 필요">⚠</span>':''}${typeLabel(e)}<span class="x" data-id="${e.id}">✕</span></span>`;
+      });
+      cell.innerHTML = html;
+
+      cell.addEventListener('click', (ev)=>{
+        if(ev.target.classList.contains('x')){
+          const id = ev.target.dataset.id;
+          const chip = ev.target.parentElement;
+          if(chip.dataset.confirm==='1'){
+            sc.entries = sc.entries.filter(x=>x.id!==id);
+            storeSet('scenarios', state.scenarios).then(render);
+          } else {
+            chip.dataset.confirm='1';
+            chip.classList.add('confirm');
+            ev.target.textContent='삭제?';
+            setTimeout(()=>{ chip.dataset.confirm='0'; chip.classList.remove('confirm'); ev.target.textContent='✕'; }, 2500);
+          }
+          ev.stopPropagation();
+          return;
+        }
+        selectedDate = iso;
+        document.getElementById('fDate').value = iso;
+        if(other){
+          selectedYear = cellYear; selectedMonth = cellMonth;
+          render();
+        } else {
+          renderCalendar();
+        }
+        document.getElementById('fDate').scrollIntoView({behavior:'smooth', block:'center'});
+      });
+
+      daysWrap.appendChild(cell);
+    }
+  }
+
+  function renderCompare(){
+    document.getElementById('compareYearBadge').textContent = selectedYear + '년 기준';
+    const box = document.getElementById('compareBox');
+    box.innerHTML = '';
+    const grant = grantForYear(selectedYear) || 1;
+    state.scenarios.forEach(s=>{
+      const usedMin = usedMinutes(s, selectedYear);
+      const usedDays = usedMin/480;
+      const remaining = grant - usedDays;
+      const pct = Math.min(100, Math.max(0,(usedDays/grant)*100));
+      const row = document.createElement('div');
+      row.className = 'compare-row';
+      row.innerHTML = `
+        <div style="font-family:var(--serif);font-weight:${s.id===state.activeScenario?'700':'400'};">${s.name}</div>
+        <div class="bar-wrap"><div class="bar ${remaining<0?'over':''}" style="width:${pct}%;"></div></div>
+        <div class="rem">${fmtDays(remaining*480)}일</div>
+      `;
+      box.appendChild(row);
+    });
+  }
+
+  function renderSettingsPanel(){
+    const s = state.settings;
+    document.getElementById('sBaseYear').value = s.baseYear;
+    document.getElementById('sBaseGrant').value = s.baseGrant;
+    document.getElementById('sIncEvery').value = s.incEvery;
+    document.getElementById('sIncAmount').value = s.incAmount;
+    document.getElementById('sCap').value = s.cap;
+
+    const tbody = document.getElementById('overrideBody');
+    tbody.innerHTML = '';
+    for(let y=selectedYear-2; y<=selectedYear+8; y++){
+      const auto = s.baseGrant + Math.floor((y - s.baseYear)/s.incEvery)*s.incAmount;
+      const autoCapped = Math.max(Math.min(auto, s.cap||99), 0);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-family:var(--mono);">${y}</td>
+        <td style="font-family:var(--mono);color:var(--ink-soft);">${autoCapped}</td>
+        <td><input type="number" data-year="${y}" value="${state.overrides[y] ?? ''}" placeholder="—"></td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderHolidayPanel(){
+    document.getElementById('hdayYearLabel').textContent = selectedYear;
+    const list = document.getElementById('hdayList');
+    const hs = (state.holidays[selectedYear]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+    list.innerHTML = '';
+    if(hs.length===0){
+      list.innerHTML = `<div style="font-size:12px;color:var(--ink-soft);">등록된 공휴일이 없습니다.</div>`;
+    }
+    hs.forEach(h=>{
+      const d = new Date(h.date+'T00:00:00');
+      const row = document.createElement('div');
+      row.className = 'hday-row';
+      row.innerHTML = `<span>${h.date} (${WEEKDAYS[d.getDay()]})</span><span class="name">${h.name}</span><span class="del">✕</span>`;
+      row.querySelector('.del').addEventListener('click', async ()=>{
+        state.holidays[selectedYear] = state.holidays[selectedYear].filter(x=>!(x.date===h.date && x.name===h.name));
+        await storeSet('holidays', state.holidays);
+        renderHolidayPanel();
+      });
+      list.appendChild(row);
+    });
+  }
+
+  function render(){
+    renderYearSelect();
+    renderTabs();
+    renderSummary();
+    renderCalendar();
+    renderLedger();
+    renderCompare();
+    renderSettingsPanel();
+    renderHolidayPanel();
+  }
+
+  // ---------- Events ----------
+  document.getElementById('calPrev').addEventListener('click', ()=>{
+    selectedMonth--;
+    if(selectedMonth<0){ selectedMonth=11; selectedYear--; }
+    render();
+  });
+  document.getElementById('calNext').addEventListener('click', ()=>{
+    selectedMonth++;
+    if(selectedMonth>11){ selectedMonth=0; selectedYear++; }
+    render();
+  });
+
+  document.getElementById('calYearJump').addEventListener('change', (e)=>{
+    selectedYear = Number(e.target.value);
+    render();
+  });
+  document.getElementById('calMonthJump').addEventListener('change', (e)=>{
+    selectedMonth = Number(e.target.value);
+    render();
+  });
+
+  document.getElementById('yPrev').addEventListener('click', ()=>{ selectedYear--; render(); });
+  document.getElementById('yNext').addEventListener('click', ()=>{ selectedYear++; render(); });
+  document.getElementById('ySelect').addEventListener('change', (e)=>{ selectedYear = Number(e.target.value); render(); });
+
+  document.getElementById('fType').addEventListener('change', (e)=>{
+    document.getElementById('fCustomWrap').style.display = e.target.value==='custom' ? 'flex' : 'none';
+  });
+
+  const formBookDraw = mountBooking(document.getElementById('fBook'), ()=>formTrip, ()=>document.getElementById('fDate').value, ()=>{});
+  document.getElementById('fAdd').addEventListener('click', async ()=>{
+    const date = document.getElementById('fDate').value;
+    if(!date){ alert('날짜를 선택해 주세요.'); return; }
+    const type = document.getElementById('fType').value;
+    let minutes, half=null;
+    if(type==='480') minutes = 480;
+    else if(type==='240'){ minutes = 240; half='am'; }
+    else if(type==='240pm'){ minutes = 240; half='pm'; }
+    else {
+      const h = Number(document.getElementById('fHour').value)||0;
+      const m = Number(document.getElementById('fMin').value)||0;
+      minutes = h*60+m;
+      if(minutes<=0){ alert('사용 시간을 입력해 주세요.'); return; }
+      if(minutes>480) minutes = 480;
+    }
+    const memo = document.getElementById('fMemo').value.trim();
+    const sc = activeScenario();
+    const entry = {id:uid(), date, minutes, half, memo};
+    const trip = cleanTrip(formTrip);
+    if(trip) entry.trip = trip;
+    sc.entries.push(entry);
+    await storeSet('scenarios', state.scenarios);
+    document.getElementById('fMemo').value='';
+    formTrip = {}; formBookDraw();
+    selectedYear = Number(date.slice(0,4));
+    selectedMonth = Number(date.slice(5,7)) - 1;
+    selectedDate = date;
+    render();
+  });
+
+  document.getElementById('sBaseYear').addEventListener('change', saveRule);
+  document.getElementById('sBaseGrant').addEventListener('change', saveRule);
+  document.getElementById('sIncEvery').addEventListener('change', saveRule);
+  document.getElementById('sIncAmount').addEventListener('change', saveRule);
+  document.getElementById('sCap').addEventListener('change', saveRule);
+  async function saveRule(){
+    state.settings = {
+      baseYear: Number(document.getElementById('sBaseYear').value)||DEFAULT_SETTINGS.baseYear,
+      baseGrant: Number(document.getElementById('sBaseGrant').value)||0,
+      incEvery: Number(document.getElementById('sIncEvery').value)||1,
+      incAmount: Number(document.getElementById('sIncAmount').value)||0,
+      cap: Number(document.getElementById('sCap').value)||99
+    };
+    await storeSet('settings', state.settings);
+    render();
+  }
+
+  document.getElementById('overrideBody').addEventListener('change', async (e)=>{
+    if(e.target.tagName!=='INPUT') return;
+    const y = e.target.dataset.year;
+    const v = e.target.value;
+    if(v===''){ delete state.overrides[y]; } else { state.overrides[y] = Number(v); }
+    await storeSet('overrides', state.overrides);
+    render();
+  });
+
+  document.getElementById('hAddBtn').addEventListener('click', async ()=>{
+    const date = document.getElementById('hAddDate').value;
+    const name = document.getElementById('hAddName').value.trim();
+    if(!date || !name){ alert('날짜와 공휴일명을 입력해 주세요.'); return; }
+    const yr = date.slice(0,4);
+    if(!state.holidays[yr]) state.holidays[yr] = [];
+    state.holidays[yr].push({date, name});
+    await storeSet('holidays', state.holidays);
+    document.getElementById('hAddName').value='';
+    renderHolidayPanel();
+  });
+
+  // ---------- Init ----------
+  document.getElementById('loginBtn').addEventListener('click', login);
+  document.getElementById('acct').addEventListener('click', ev=>{ if(ev.target.id==='logoutBtn' && fb) fb.signOut(fb.auth); });
+  document.getElementById('importBtn').addEventListener('click', importBackup);
+  document.getElementById('copyBackupBtn').addEventListener('click', copyBackup);
+  window.addEventListener('online', ()=>{ if(loaded) setSaveStatus('ok'); });
+  (async function init(){
+    if(IN_APP) document.getElementById('inAppWarn').hidden = false;
+    document.querySelector('.year-picker').style.visibility = 'hidden';
+    setSaveStatus('loading');
+    try{
+      fb = await Promise.race([fbReady, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), 20000))]);
+    }catch(e){
+      setSaveStatus('fatal', '저장소 프로그램을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해주세요.');
+      return;
+    }
+    startStore();
+  })();
 })();
 </script>
 </body>
