@@ -108,7 +108,8 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .r-capw{grid-column:2/-1;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);flex-wrap:wrap;}
 .r-capw .r-cap{width:130px;}
 .r-free:disabled{cursor:default;opacity:0.85;}
-.nt-badge{display:inline-block;font-size:11px;font-weight:700;color:var(--ok);background:rgba(30,127,92,0.13);border-radius:999px;padding:2px 9px;margin-bottom:8px;}
+.ml-badge{color:var(--accent);background:rgba(31,59,115,0.12);}
+.nt-badge{margin-right:6px;display:inline-block;font-size:11px;font-weight:700;color:var(--ok);background:rgba(30,127,92,0.13);border-radius:999px;padding:2px 9px;margin-bottom:8px;}
 .cap{font-size:10.5px;font-weight:600;color:var(--ink-soft);margin-left:5px;border:1px solid var(--line);border-radius:999px;padding:0 6px;background:var(--surface);white-space:nowrap;}
 .r-free{height:38px;border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;white-space:nowrap;}
 .r-free[aria-pressed="true"]{background:rgba(30,127,92,0.12);border-color:rgba(30,127,92,0.45);color:var(--ok);}
@@ -306,6 +307,12 @@ table.tbl{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
         <div class="field"><label for="iFee">연회비 (원)</label><input id="iFee" inputmode="numeric" placeholder="예: 15,000 · 없으면 0"></div>
       </div>
       <div class="field" style="margin-bottom:12px;">
+        <span class="label">카드 분류</span>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;"><input type="checkbox" id="iMileage" style="width:18px;height:18px;padding:0;flex:none;accent-color:var(--accent);"> 마일리지 카드</label>
+        <span class="hint" id="clsPreview"></span>
+        <span class="hint">마일리지 카드는 아래 전월 실적과 따로 설정돼서, <b>마일리지 카드 + 무실적</b>, <b>마일리지 카드 + 실적</b>처럼 겹쳐서 분류돼요.</span>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
         <span class="label">전월 실적별 혜택 한도</span>
         <div class="tiers-edit" id="tierRows"></div>
         <button type="button" class="btn small" id="addTierBtn">+ 실적 단계 추가</button>
@@ -384,7 +391,7 @@ const NETWORKS = ['VISA','Mastercard','JCB','AMEX','UnionPay','국내전용'];
 const GRADES = ['일반','Gold','Platinum','Signature','World','World Elite','Infinite','Ultimate','Black','Diamond'];
 const TAGS = ['국내 가맹점','쇼핑','온라인','간편결제','주유','택시','통신','카페','외식','영화','편의점','마트','백화점','해외','면세점','항공','마일리지','포인트·캐시백','공과금','구독'];
 // 세부로 나눌 수 있는 분야: '영화'만 고르면 영화 전체, 세부를 고르면 '영화 · CGV'처럼 따로 저장돼요
-const SUBTAGS = {'간편결제':['네이버페이','카카오페이','페이코','토스페이','KB페이'], '영화':['CGV','롯데시네마','메가박스']};
+const SUBTAGS = {'간편결제':['네이버페이','카카오페이','페이코','토스페이','KB페이'], '영화':['CGV','롯데시네마','메가박스'], '면세점':['롯데','신세계','신라']};
 const SUBSEP = ' · ';
 function parentOf(t){ const k=String(t).indexOf(SUBSEP); return k<0 ? t : t.slice(0,k); }
 function subName(t){ const k=String(t).indexOf(SUBSEP); return k<0 ? t : t.slice(k+SUBSEP.length); }
@@ -505,7 +512,7 @@ function benefitLines(c){ return String(c.benefits||'').split('\n').map(x=>x.tri
 /* ---------- 상태 ---------- */
 let cards = null;                // 저장소에서 온 카드 목록
 let view = 'grid', sortKey = 'added';
-const filt = {issuer:'', grade:'', network:'', tag:'', q:'', free:false, noTier:false};
+const filt = {issuer:'', grade:'', network:'', tag:'', q:'', free:false, noTier:false, mileage:false};
 const openTiles = new Set();     // 혜택 '더 보기' 펼친 카드
 let editingId = null;
 try{
@@ -613,7 +620,7 @@ function removeCard(id){
 }
 
 /* ---------- 거르기·정렬 ---------- */
-function haystack(c){ return [c.name,c.issuer,c.grade,normNet(c.network),c.benefits,c.memo,(c.tags||[]).join(' '),tiersOf(c).map(t=>t.note||'').join(' '),Object.values(c.rates||{}).map(r=>r&&r.note||'').join(' ')].join(' ').toLowerCase(); }
+function haystack(c){ return [c.mileage?'마일리지 카드':'', noTier(c)?'무실적 카드':'', c.name,c.issuer,c.grade,normNet(c.network),c.benefits,c.memo,(c.tags||[]).join(' '),tiersOf(c).map(t=>t.note||'').join(' '),Object.values(c.rates||{}).map(r=>r&&r.note||'').join(' ')].join(' ').toLowerCase(); }
 function visibleCards(){
   const q=filt.q.trim().toLowerCase();
   let list=(cards||[]).filter(c=>
@@ -622,6 +629,7 @@ function visibleCards(){
     (!filt.network || normNet(c.network)===filt.network) &&
     (!filt.tag || (c.tags||[]).some(t=>parentOf(t)===filt.tag)) &&
     (!filt.noTier || noTier(c)) &&
+    (!filt.mileage || c.mileage) &&
     (!filt.free || (filt.tag ? (c.tags||[]).some(t=>parentOf(t)===filt.tag && isFree(c,t)) : hasFree(c))) &&
     (!q || haystack(c).includes(q)));
   const byNum=(k,dir)=>(a,b)=>{ const x=a[k], y=b[k]; if(x==null&&y==null) return 0; if(x==null) return 1; if(y==null) return -1; return dir*(x-y); };
@@ -663,13 +671,15 @@ function render(){
   if(!anyFree) filt.free=false;
   const anyNoTier=(cards||[]).some(noTier);
   if(!anyNoTier) filt.noTier=false;
-  $('tagChips').innerHTML = chipRow('혜택', tags, TAGS, 'tag') + (anyFree ? `<button type="button" class="chip free-chip" data-freechip aria-pressed="${filt.free}">무실적 혜택만</button>` : '') + (anyNoTier ? `<button type="button" class="chip free-chip" data-notierchip aria-pressed="${filt.noTier}">무실적 카드</button>` : '');
+  const anyMileage=(cards||[]).some(c=>c.mileage);
+  if(!anyMileage) filt.mileage=false;
+  $('tagChips').innerHTML = chipRow('혜택', tags, TAGS, 'tag') + (anyFree ? `<button type="button" class="chip free-chip" data-freechip aria-pressed="${filt.free}">무실적 혜택만</button>` : '') + (anyNoTier ? `<button type="button" class="chip free-chip" data-notierchip aria-pressed="${filt.noTier}">무실적 카드</button>` : '') + (anyMileage ? `<button type="button" class="chip free-chip" data-milechip aria-pressed="${filt.mileage}">마일리지 카드</button>` : '');
 
   document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.view===view)));
   $('sortSel').value = sortKey;
 
   const list=visibleCards();
-  const filtered = filt.issuer||filt.grade||filt.network||filt.tag||filt.free||filt.noTier||filt.q.trim();
+  const filtered = filt.issuer||filt.grade||filt.network||filt.tag||filt.free||filt.noTier||filt.mileage||filt.q.trim();
   $('resultNote').innerHTML = cards.length && filtered ? `${list.length}장 보는 중 (전체 ${cards.length}장)<button type="button" class="link-btn" id="clearFilters">거르기 지우기</button>` : '';
 
   const root=$('list');
@@ -690,7 +700,7 @@ function tileHtml(c){
     </div>`}
     <div class="body">
       ${img ? `<div class="ctitle"><b>${esc(c.name||'')}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>` : ''}
-      ${noTier(c)?'<div class="nt-badge">무실적 카드</div>':''}
+      ${c.mileage?'<div class="nt-badge ml-badge">마일리지 카드</div>':''}${noTier(c)?'<div class="nt-badge">무실적 카드</div>':''}
       <div class="kv"><div><div class="k">연회비</div><div class="v">${esc(won(c.annualFee))}</div></div><div><div class="k">전월 실적</div><div class="v">${esc(spendShort(c))}</div></div></div>
       ${tierTableHtml(c)}
       ${tagsHtml(c)}
@@ -721,7 +731,7 @@ function tableHtml(list){
   </tr></thead><tbody>${list.map(c=>`<tr>
     <td><div class="cname">${safeImg(c.image) ? `<img class="thumb" src="${safeImg(c.image)}" alt="">` : `<span class="dotc" style="background:${esc(colorOf(c))}"></span>`}${esc(c.name||'')}</div></td>
     <td>${esc(c.issuer||'')}</td><td>${esc(normNet(c.network))}</td><td>${esc(c.grade||'')}</td>
-    <td class="num">${esc(won(c.annualFee))}</td><td class="pre">${esc(noTier(c) && !tiersOf(c).length ? '무실적 카드' : tiersOf(c).map(tierText).join('\n')||'—')}</td>
+    <td class="num">${esc(won(c.annualFee))}</td><td class="pre">${esc((noTier(c) && !tiersOf(c).length ? '무실적 카드' : tiersOf(c).map(tierText).join('\n')||'—') + (c.mileage ? '\n마일리지 카드' : ''))}</td>
     <td>${tagsHtml(c)}</td>
     <td class="pre">${esc(benefitLines(c).join('\n'))}</td><td class="pre">${esc(c.memo||'')}</td>
     <td><button type="button" class="edit" data-edit="${esc(c.id)}">수정</button></td>
@@ -786,7 +796,11 @@ $('imgRemove').addEventListener('click', ()=>{ formImage=''; imgSource=null; img
 let formRates={};
 function formNoTier(){ return ![...$('tierRows').querySelectorAll('.tier-row')].some(r=>(num(r.querySelector('.t-min').value)||0)>0); }
 let lastNoTier=null;
-function checkTierState(){ if(formNoTier()!==lastNoTier) drawRateRows(); }
+function updateClsPreview(){
+  const el=$('clsPreview'); if(!el) return;
+  el.textContent = '분류: ' + [$('iMileage').checked?'마일리지 카드':'', formNoTier()?'무실적':'실적'].filter(Boolean).join(' · ');
+}
+function checkTierState(){ updateClsPreview(); if(formNoTier()!==lastNoTier) drawRateRows(); }
 function rateRowHtml(t, group){
   const r=formRates[t]||{}, u=r.u||defaultUnit(t), nt=formNoTier();
   return `<div class="rate-row${isSubTag(t)?' sub':''}" data-tag="${esc(t)}"${group?` data-group="${esc(group)}"`:''}>
@@ -882,7 +896,7 @@ function openForm(c){
   $('saveBtn').textContent = c ? '수정 저장' : '추가하기';
   $('delBtn').hidden = !c; resetDel();
   $('iName').value=c?.name||''; $('iIssuer').value=c?.issuer||''; $('iNet').value=c?normNet(c.network):''; $('iGrade').value=c?.grade||'';
-  $('iFee').value=c&&c.annualFee!=null?commas(c.annualFee):''; drawTierRows(c ? tiersOf(c) : []);
+  $('iFee').value=c&&c.annualFee!=null?commas(c.annualFee):''; drawTierRows(c ? tiersOf(c) : []); $('iMileage').checked=!!(c&&c.mileage); updateClsPreview();
   $('iBenefits').value=c?.benefits||''; $('iMemo').value=c?.memo||'';
   formTags=new Set(normTags(c?.tags)); formColor=c?.color||''; resetImg(c);
   formRates=JSON.parse(JSON.stringify((c&&c.rates)||{}));
@@ -907,7 +921,7 @@ $('form').addEventListener('submit', ev=>{
   const c={
     id: old ? old.id : uid(),
     name, issuer:$('iIssuer').value.trim(), network:normNet($('iNet').value), grade:$('iGrade').value.trim(),
-    annualFee:num($('iFee').value), tiers:tr.tiers, prevSpend:tr.tiers.length ? tr.tiers[0].min : null,
+    annualFee:num($('iFee').value), mileage:$('iMileage').checked, tiers:tr.tiers, prevSpend:tr.tiers.length ? tr.tiers[0].min : null,
     tags:sortTags([...formTags]), rates:Object.fromEntries([...formTags].map(t=>[t,formRates[t]]).filter(([,r])=>r && (r.v!=null || r.note || r.free || r.cap!=null))), benefits:$('iBenefits').value.replace(/\s+$/,''), memo:$('iMemo').value.trim(),
     color: formColor || (old&&old.color) || '',
     image: formImage || '',
@@ -930,6 +944,7 @@ $('cancelBtn').addEventListener('click', closeForm);
 $('addBtn').addEventListener('click', ()=>openForm(null));
 $('iFee').addEventListener('input', ev=>{ const n=num(ev.target.value); ev.target.value = n==null ? '' : commas(n); });
 $('tierRows').addEventListener('input', ev=>{ if(!ev.target.matches('.t-min,.t-limit')) return; const n=num(ev.target.value); ev.target.value = n==null ? '' : commas(n); checkTierState(); });
+$('iMileage').addEventListener('change', updateClsPreview);
 $('tierRows').addEventListener('click', ev=>{ const b=ev.target.closest('.t-del'); if(b){ b.closest('.tier-row').remove(); checkTierState(); } });
 $('addTierBtn').addEventListener('click', ()=>{ $('tierRows').insertAdjacentHTML('beforeend', tierRowHtml()); const rows=$('tierRows').querySelectorAll('.t-min'); rows[rows.length-1].focus(); });
 function onTagPick(ev){ const b=ev.target.closest('[data-tag]'); if(!b) return; const t=b.dataset.tag; formTags.has(t)?formTags.delete(t):formTags.add(t); drawTagPick(); drawRateRows(); }
@@ -953,7 +968,7 @@ $('list').addEventListener('click', ev=>{
   const m=ev.target.closest('[data-more]'); if(m){ const id=m.dataset.more; openTiles.has(id)?openTiles.delete(id):openTiles.add(id); render(); return; }
   const s=ev.target.closest('[data-sort]'); if(s){ sortKey=s.dataset.sort; try{localStorage.setItem('cards-sort',sortKey);}catch(_){} render(); }
 });
-function onChip(ev){ if(ev.target.closest('[data-freechip]')){ filt.free=!filt.free; render(); return; } if(ev.target.closest('[data-notierchip]')){ filt.noTier=!filt.noTier; render(); return; } const b=ev.target.closest('[data-f]'); if(!b) return; const k=b.dataset.f, v=b.dataset.v; filt[k] = filt[k]===v ? '' : v; render(); }
+function onChip(ev){ if(ev.target.closest('[data-freechip]')){ filt.free=!filt.free; render(); return; } if(ev.target.closest('[data-notierchip]')){ filt.noTier=!filt.noTier; render(); return; } if(ev.target.closest('[data-milechip]')){ filt.mileage=!filt.mileage; render(); return; } const b=ev.target.closest('[data-f]'); if(!b) return; const k=b.dataset.f, v=b.dataset.v; filt[k] = filt[k]===v ? '' : v; render(); }
 $('netChips').addEventListener('click', onChip);
 $('tagChips').addEventListener('click', onChip);
 $('fIssuer').addEventListener('change', ev=>{ filt.issuer=ev.target.value; render(); });
@@ -961,7 +976,7 @@ $('fGrade').addEventListener('change', ev=>{ filt.grade=ev.target.value; render(
 $('q').addEventListener('input', ev=>{ filt.q=ev.target.value; render(); });
 $('sortSel').addEventListener('change', ev=>{ sortKey=ev.target.value; try{localStorage.setItem('cards-sort',sortKey);}catch(_){} render(); });
 document.querySelector('.seg').addEventListener('click', ev=>{ const b=ev.target.closest('[data-view]'); if(!b) return; view=b.dataset.view; try{localStorage.setItem('cards-view',view);}catch(_){} render(); });
-$('resultNote').addEventListener('click', ev=>{ if(ev.target.id!=='clearFilters') return; Object.assign(filt,{issuer:'',grade:'',network:'',tag:'',q:'',free:false,noTier:false}); $('q').value=''; render(); });
+$('resultNote').addEventListener('click', ev=>{ if(ev.target.id!=='clearFilters') return; Object.assign(filt,{issuer:'',grade:'',network:'',tag:'',q:'',free:false,noTier:false,mileage:false}); $('q').value=''; render(); });
 
 /* ---------- 알림 (되돌리기) ---------- */
 let toastTimer=null, toastUndo=null;
