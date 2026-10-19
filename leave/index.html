@@ -146,9 +146,6 @@
   .cal-chip{font-size:9.5px;background:var(--stamp-red);color:var(--white);border-radius:8px;padding:1px 6px;display:inline-flex;align-items:center;gap:3px;line-height:1.5;align-self:flex-start;}
   .cal-chip .x{cursor:pointer;font-weight:700;}
   /* ---------- 예약 (항공·호텔·이동수단) ---------- */
-  .bk-wrap{margin-top:10px;}
-  .bk-wrap-h{font-size:12px;font-weight:700;color:var(--ink-soft);margin:0 0 6px;}
-  .bk-wrap-h small{font-weight:400;margin-left:6px;}
   .bk-card{border:1px solid var(--line);border-radius:var(--radius);background:var(--paper-2);padding:9px 11px;margin-bottom:8px;}
   .bk-card.st-need{border-color:var(--stamp-red-dim);}
   .bk-card.st-done{border-color:rgba(76,186,132,0.5);}
@@ -326,11 +323,6 @@
         </div>
         <button class="btn" id="fAdd">+ 등록</button>
       </div>
-      <div class="bk-wrap">
-        <p class="bk-wrap-h">예약 확인 <small>항공(출발·귀국) · 호텔 · 이동수단(출발·귀국) — 체크하지 않은 일정은 내역과 캘린더에 경고로 표시돼요</small></p>
-        <div id="fBook"></div>
-      </div>
-
       <h2 class="sec-title" id="ledgerTitle">일정 내역</h2>
       <table class="ledger">
         <thead><tr><th>날짜</th><th>요일</th><th>구분</th><th>메모</th><th>예약</th><th style="text-align:right;">사용(일)</th><th></th></tr></thead>
@@ -589,7 +581,7 @@
   // 입력 중인 칸이 있으면 다른 기기에서 온 변경으로 화면을 다시 그리지 않아요
   function isEditing(){
     const a = document.activeElement;
-    return !!(a && (a.classList.contains('tab-name-input') || (a.closest && a.closest('.rule-grid, #overrideBody, .bk-box, #fBook'))));
+    return !!(a && (a.classList.contains('tab-name-input') || (a.closest && a.closest('.rule-grid, #overrideBody, .bk-box'))));
   }
 
   async function login(){
@@ -922,7 +914,6 @@
     BK_KINDS.forEach(([k])=>{ const x = t[k]; if(x && x.s) o[k] = x.s==='none' ? {s:'none'} : Object.assign({}, x); });
     return Object.keys(o).length ? o : null;
   }
-  let formTrip = {};
   const openBk = new Set();
   function bkBadges(e){
     const future = e.date >= todayLocal();
@@ -1238,7 +1229,6 @@
     document.getElementById('fCustomWrap').style.display = e.target.value==='custom' ? 'flex' : 'none';
   });
 
-  const formBookDraw = mountBooking(document.getElementById('fBook'), ()=>formTrip, ()=>document.getElementById('fDate').value, ()=>{});
   document.getElementById('fAdd').addEventListener('click', async ()=>{
     const date = document.getElementById('fDate').value;
     if(!date){ alert('날짜를 선택해 주세요.'); return; }
@@ -1258,12 +1248,9 @@
     const memo = document.getElementById('fMemo').value.trim();
     const sc = activeScenario();
     const entry = {id:uid(), date, minutes, half, memo};
-    const trip = cleanTrip(formTrip);
-    if(trip) entry.trip = trip;
     sc.entries.push(entry);
     await storeSet('scenarios', state.scenarios);
     document.getElementById('fMemo').value='';
-    formTrip = {}; formBookDraw();
     selectedYear = Number(date.slice(0,4));
     selectedMonth = Number(date.slice(5,7)) - 1;
     selectedDate = date;
