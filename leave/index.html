@@ -164,9 +164,6 @@
   .bk-f{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--ink-soft);}
   .bk-f input{font-family:var(--sans);font-size:13px;padding:5px 7px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);width:140px;}
   .bk-f input[type=date]::-webkit-calendar-picker-indicator,.bk-f input[type=time]::-webkit-calendar-picker-indicator{filter:invert(0.85);cursor:pointer;}
-  .bk-alert{margin:0 0 10px;padding:10px 12px;border:1px solid var(--stamp-red-dim);background:rgba(232,93,81,0.10);border-radius:var(--radius);font-size:12.5px;line-height:1.6;}
-  .bk-alert b{color:var(--stamp-red);}
-  .bk-alert[hidden]{display:none;}
   table.ledger tr.bk-warn td{background:rgba(232,93,81,0.07);}
   table.ledger tr.bk-warn td:first-child{box-shadow:inset 3px 0 0 var(--stamp-red);}
   table.ledger td.bkc{white-space:nowrap;}
@@ -185,10 +182,12 @@
   .cal-trip.t-end{margin-right:0;border-right:1px solid var(--gold);border-radius:0 8px 8px 0;}
   .cal-trip.t-wkend{margin-right:-7px;}
   .cal-ret{font-size:10px;font-weight:700;line-height:1.5;border-radius:6px;padding:0 5px;background:var(--accent, #2D6A4F);color:#fff;white-space:nowrap;}
-  .bk-al-row{margin-top:3px;}
   .cal-wp{font-size:9px;line-height:1.5;border-radius:6px;padding:0 4px;border:1px solid var(--stamp-red);color:var(--stamp-red);background:rgba(232,93,81,0.12);white-space:nowrap;}
   .cal-wp.unset{border-color:var(--gold);color:var(--gold);background:rgba(224,172,78,0.12);}
   .bk-b small{font-size:10px;margin-left:1px;}
+  .bk-time{display:flex;align-items:center;gap:3px;}
+  .bk-time select{font-family:var(--sans);font-size:13px;padding:5px 3px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);}
+  .bk-hint{flex-basis:100%;font-size:11.5px;color:var(--stamp-red);margin-top:6px;}
 
   .cal-chip.confirm{background:var(--ink);}
 
@@ -333,7 +332,6 @@
       </div>
 
       <h2 class="sec-title" id="ledgerTitle">일정 내역</h2>
-      <div class="bk-alert" id="bkAlert" hidden></div>
       <table class="ledger">
         <thead><tr><th>날짜</th><th>요일</th><th>구분</th><th>메모</th><th>예약</th><th style="text-align:right;">사용(일)</th><th></th></tr></thead>
         <tbody id="ledgerBody"></tbody>
@@ -864,12 +862,26 @@
     if(!e.date || e.date < todayLocal()) return [];
     return BK_KINDS.map(x=>x[0]).filter(k=>{ const st = bkState(e,k); return st==='unset' || st==='need'; });
   }
+  // 시간은 시·분(5분 단위)을 골라서 입력해요
+  function bkTimeHtml(kind, f, val){
+    const m0 = /^\d{2}:\d{2}$/.test(val||'') ? val.split(':') : ['',''];
+    const hrs = Array.from({length:24}, (_,i)=>pad2(i));
+    const mins = Array.from({length:12}, (_,i)=>pad2(i*5));
+    if(m0[1] && !mins.includes(m0[1])){ mins.push(m0[1]); mins.sort(); }       // 예전에 5분 단위가 아니게 저장된 값은 그대로 보여줘요
+    const opt = (list, cur, ph)=>`<option value="">${ph}</option>` + list.map(v=>`<option value="${v}"${v===cur?' selected':''}>${v}</option>`).join('');
+    return `<span class="bk-time" data-kind="${kind}" data-f="${f}"><select class="bk-th" aria-label="시">${opt(hrs,m0[0],'시')}</select><b>:</b><select class="bk-tm" aria-label="분 (5분 단위)">${opt(mins,m0[1],'분')}</select></span>`;
+  }
   function bkEditorHtml(trip){
     return BK_KINDS.map(([k,ico,lab])=>{
       const x = trip[k] || {}, st = x.s || '';
       const seg = BK_STATES.map(([v,l])=>`<button type="button" class="bk-opt${st===v?' on '+v:''}" data-kind="${k}" data-state="${v}" aria-pressed="${st===v}">${l}</button>`).join('');
+      // 귀국편은 날짜를 적어야 캘린더에 귀국일이 표시돼요
+      const dateF = BK_FIELDS[k].find(f=>f[2]==='date');
+      const retHint = (/Ret$/.test(k) && (st==='need'||st==='done') && !x[dateF[0]]) ? `<div class="bk-hint">⚠ ${dateF[1]}을 입력해야 캘린더에 귀국일이 표시돼요</div>` : '';
       const fields = (st==='need'||st==='done')
-        ? `<div class="bk-fields">${BK_FIELDS[k].map(([f,l,t,ph])=>`<label class="bk-f"><span>${l}</span><input type="${t}" data-kind="${k}" data-f="${f}" value="${bkEsc(x[f])}"${ph?` placeholder="${ph}"`:''}></label>`).join('')}</div>`
+        ? `<div class="bk-fields">${BK_FIELDS[k].map(([f,l,t,ph])=>t==='time'
+          ? `<div class="bk-f"><span>${l}</span>${bkTimeHtml(k,f,x[f])}</div>`
+          : `<label class="bk-f"><span>${l}</span><input type="${t}" data-kind="${k}" data-f="${f}" value="${bkEsc(x[f])}"${ph?` placeholder="${ph}"`:''}></label>`).join('')}</div>${retHint}`
         : '';
       return `<div class="bk-card ${st?'st-'+st:'st-unset'}"><div class="bk-head"><span class="bk-ttl">${ico} ${lab}</span><span class="bk-seg">${seg}</span></div>${fields}</div>`;
     }).join('');
@@ -882,13 +894,25 @@
       const trip = getTrip(), k = b.dataset.kind, v = b.dataset.state;
       const x = trip[k] || (trip[k] = {});
       if(x.s===v) delete x.s; else x.s = v;
-      if(x.s && x.s!=='none'){ const d = getDate(); const df = BK_FIELDS[k].find(f=>f[2]==='date'); if(d && df && BK_PREFILL.has(k) && !x[df[0]]) x[df[0]] = d; }
+      if(x.s && x.s!=='none'){ const d = getDate(); const df = BK_FIELDS[k].find(f=>f[2]==='date'); const retOnly = (k==='flightRet' && !(trip.flightOut && (trip.flightOut.s==='need'||trip.flightOut.s==='done')))
+                    || (k==='moveRet' && !(trip.moveOut && (trip.moveOut.s==='need'||trip.moveOut.s==='done')));   // 출발편 없이 귀국편만 있으면 그 일정 날짜가 귀국일
+      if(d && df && (BK_PREFILL.has(k) || retOnly) && !x[df[0]]) x[df[0]] = d; }
       draw(); onChange('state');
     });
     box.addEventListener('change', ev=>{
+      const sel = ev.target.closest('.bk-time select');
+      if(sel){
+        const w = sel.closest('.bk-time'), h = w.querySelector('.bk-th'), m = w.querySelector('.bk-tm');
+        if(h.value && !m.value) m.value = '00';
+        if(!h.value) m.value = '';
+        const trip = getTrip(); const x = trip[w.dataset.kind] || (trip[w.dataset.kind] = {});
+        x[w.dataset.f] = h.value ? `${h.value}:${m.value}` : ''; onChange('field'); return;
+      }
       const i = ev.target.closest('input[data-f]'); if(!i) return;
       const trip = getTrip(); const x = trip[i.dataset.kind] || (trip[i.dataset.kind] = {});
-      x[i.dataset.f] = i.value.trim(); onChange('field');
+      x[i.dataset.f] = i.value.trim();
+      if(i.type==='date') draw();
+      onChange('field');
     });
     draw();
     return draw;
@@ -927,28 +951,10 @@
       });
     }));
   }
-  // 예약 확인 칸: '예약 필요'로 체크한 항목만 자동으로 모아서 보여줘요 (오늘 이후 일정)
-  function renderBkAlert(sc){
-    const box = document.getElementById('bkAlert');
-    const rows = sc.entries
-      .filter(e=>e.date >= todayLocal())
-      .map(e=>({e, k:BK_KINDS.filter(([k])=>bkState(e,k)==='need')}))
-      .filter(x=>x.k.length)
-      .sort((a,b)=>a.e.date.localeCompare(b.e.date));
-    if(!rows.length){ box.hidden = true; box.innerHTML = ''; return; }
-    const lines = rows.slice(0,12).map(({e,k})=>{
-      const [y,m,d] = e.date.split('-').map(Number), wd = WEEKDAYS[new Date(y,m-1,d).getDay()];
-      return `<div class="bk-al-row"><b>${m}/${d} (${wd})</b>${e.memo?` ${bkEsc(e.memo)}`:''} — ${k.map(([,ico,lab])=>`${ico} ${lab.replace(' · ',' ')}`).join(' · ')}</div>`;
-    }).join('');
-    box.innerHTML = `⚠ <b>예약 필요 ${rows.length}건</b>${lines}${rows.length>12?`<div style="color:var(--ink-soft);">외 ${rows.length-12}건</div>`:''}`;
-    box.hidden = false;
-  }
-
   function renderLedger(){
     const sc = activeScenario();
     const tbody = document.getElementById('ledgerBody');
     tbody.innerHTML = '';
-    renderBkAlert(sc);
     const years = Array.from(new Set(sc.entries.map(e=>e.date.slice(0,4)))).sort();
     const relevantYears = years.includes(String(selectedYear)) ? [String(selectedYear)] : (years.length?years:[String(selectedYear)]);
     // Show only selected year's entries, but note if scenario has other years
@@ -988,8 +994,9 @@
         tbody.appendChild(dt);
         mountBooking(dt.querySelector('.bk-box'), ()=>e.trip || (e.trip = {}), ()=>e.date, async (what)=>{
           if(e.trip && !cleanTrip(e.trip)) delete e.trip;
+          renderCalendar();                       // 날짜·상태를 고치면 캘린더(막대·귀국 배지)에 바로 반영
           await storeSet('scenarios', state.scenarios);
-          if(what==='state'){ renderLedger(); renderCalendar(); }
+          if(what==='state') renderLedger();
         });
       }
     });
