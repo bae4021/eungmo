@@ -178,6 +178,7 @@
   .cal-trip.t-start{margin-left:0;border-left:1px solid var(--gold);border-radius:8px 0 0 8px;padding-left:6px;}
   .cal-trip.t-end{margin-right:0;border-right:1px solid var(--gold);border-radius:0 8px 8px 0;}
   .cal-trip.t-wkend{margin-right:-7px;}
+  .cal-out{font-size:10px;font-weight:700;line-height:1.5;border-radius:6px;padding:0 5px;background:var(--sat);color:var(--white);white-space:nowrap;}
   .cal-ret{font-size:10px;font-weight:700;line-height:1.5;border-radius:6px;padding:0 5px;background:var(--accent, #2D6A4F);color:#fff;white-space:nowrap;}
   .cal-wp{font-size:9px;line-height:1.5;border-radius:6px;padding:0 4px;border:1px solid var(--stamp-red);color:var(--stamp-red);background:rgba(232,93,81,0.12);white-space:nowrap;}
   .cal-wp.unset{border-color:var(--gold);color:var(--gold);background:rgba(224,172,78,0.12);}
@@ -835,8 +836,8 @@
   }
 
   // ---------- 예약 (항공·호텔·이동수단) ----------
-  // [키, 아이콘, 이름, 짧은 이름] — 항공·이동수단은 출발편과 귀국편을 따로 입력해요
-  const BK_KINDS = [['flightOut','✈','항공 · 출발','출발'],['flightRet','✈','항공 · 귀국','귀국'],['hotel','🏨','호텔',''],['moveOut','🚆','이동수단 · 출발','출발'],['moveRet','🚆','이동수단 · 귀국','귀국']];
+  // [키, 아이콘, 이름, 짧은 이름] — 항공·이동수단은 출국편과 귀국편을 따로 입력해요
+  const BK_KINDS = [['flightOut','✈','항공 · 출국','출국'],['flightRet','✈','항공 · 귀국','귀국'],['hotel','🏨','호텔',''],['moveOut','🚆','이동수단 · 출국','출국'],['moveRet','🚆','이동수단 · 귀국','귀국']];
   const BK_STATES = [['none','해당 없음'],['need','예약 필요'],['done','예약 완료']];
   const FLIGHT_F = [['date','탑승일','date'],['airline','항공사','text','예: 대한항공'],['time','탑승 시간','time'],['agency','예약처','text','예: 트립닷컴']];
   const MOVE_F = [['type','수단','text','예: KTX, 렌터카'],['dep','출발일','date'],['arr','도착일','date'],['time','시간','time'],['agency','예약처','text']];
@@ -1005,6 +1006,12 @@
     const x = e.trip && e.trip[k];
     return x && (x.s==='need'||x.s==='done') && /^\d{4}-\d{2}-\d{2}$/.test(x[f]||'') ? x[f] : null;
   }
+  // 출발편은 날짜를 안 적었으면 일정 날짜를 출발일로 봐요
+  function bkOutDate(e,k,f){
+    const x = e.trip && e.trip[k];
+    if(!x || !(x.s==='need'||x.s==='done')) return null;
+    return /^\d{4}-\d{2}-\d{2}$/.test(x[f]||'') ? x[f] : e.date;
+  }
   function tripSpan(e){
     const outs = [e.date, bkDate(e,'flightOut','date'), bkDate(e,'moveOut','dep')].filter(Boolean).sort();
     const rets = [bkDate(e,'flightRet','date'), bkDate(e,'moveRet','dep')].filter(Boolean).sort();
@@ -1078,18 +1085,26 @@
         html += `<div class="cal-trip${isStart?' t-start':''}${isEnd?' t-end':''}${col===6&&!isEnd?' t-wkend':''}" title="${bkEsc(e.memo||'일정')}: ${sp.start} ~ ${sp.end}">${label}</div>`;
       });
       entries.forEach(e=>{
-        const calLabel = e.minutes ? typeLabel(e) : bkEsc((e.memo||'일정').slice(0,8));
-        html += `<span class="cal-chip${e.minutes?'':' noleave'}" data-id="${e.id}" title="${e.minutes?'연차 사용':'연차 사용 안 함'}">${calLabel}<span class="x" data-id="${e.id}">✕</span></span>`;
+        // 출국~귀국으로 이어진 막대가 있으면, 연차를 안 쓰는 일정의 파란 메모 칩은 막대와 겹치니 숨겨요
+        if(e.minutes || !spans.some(x=>x.e===e)){
+          const calLabel = e.minutes ? typeLabel(e) : bkEsc((e.memo||'일정').slice(0,8));
+          html += `<span class="cal-chip${e.minutes?'':' noleave'}" data-id="${e.id}" title="${e.minutes?'연차 사용':'연차 사용 안 함'}">${calLabel}<span class="x" data-id="${e.id}">✕</span></span>`;
+        }
         const pills = bkWarnPills(e);
         if(pills) html += `<span class="cal-wrow">${pills}</span>`;
       });
-      // 귀국일에는 귀국 배지
-      const rets = [];
+      // 출국일에는 출국 배지, 귀국일에는 귀국 배지
+      const pills2 = [];
       sc.entries.forEach(e=>{
-        if(bkDate(e,'flightRet','date')===iso) rets.push('✈');
-        if(bkDate(e,'moveRet','dep')===iso) rets.push('🚆');
+        if(bkOutDate(e,'flightOut','date')===iso) pills2.push(['out','✈','출국']);
+        if(bkOutDate(e,'moveOut','dep')===iso) pills2.push(['out','🚆','출국']);
       });
-      if(rets.length) html += `<span class="cal-wrow">${[...new Set(rets)].map(ico=>`<span class="cal-ret" title="귀국일">${ico} 귀국</span>`).join('')}</span>`;
+      sc.entries.forEach(e=>{
+        if(bkDate(e,'flightRet','date')===iso) pills2.push(['ret','✈','귀국']);
+        if(bkDate(e,'moveRet','dep')===iso) pills2.push(['ret','🚆','귀국']);
+      });
+      const uniq = [...new Map(pills2.map(x=>[x.join('|'),x])).values()];
+      if(uniq.length) html += `<span class="cal-wrow">${uniq.map(([kind,ico,lab])=>`<span class="cal-${kind==='out'?'out':'ret'}" title="${lab}일">${ico} ${lab}</span>`).join('')}</span>`;
       cell.innerHTML = html;
 
       cell.addEventListener('click', (ev)=>{
