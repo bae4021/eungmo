@@ -173,15 +173,17 @@
   .bk-toggle{font-family:var(--sans);font-size:11px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);border-radius:999px;padding:1px 8px;cursor:pointer;}
   table.ledger tr.bk-detail td{background:var(--paper-2);padding:10px 12px;}
   .cal-chip.noleave{background:var(--sat);}
-  .cal-wrow{display:flex;flex-wrap:wrap;gap:2px;}
+  .cal-badges{display:flex;flex-wrap:wrap;gap:2px;margin-top:2px;}
   .cal-trip{margin:0 -10px 0 -7px;height:16px;line-height:16px;font-size:10px;font-weight:700;color:var(--ink);background:rgba(224,172,78,0.28);border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);padding-left:9px;white-space:nowrap;overflow:hidden;}
   .cal-trip.t-start{margin-left:0;border-left:1px solid var(--gold);border-radius:8px 0 0 8px;padding-left:6px;}
   .cal-trip.t-end{margin-right:0;border-right:1px solid var(--gold);border-radius:0 8px 8px 0;}
   .cal-trip.t-wkend{margin-right:-7px;}
-  .cal-out{font-size:10px;font-weight:700;line-height:1.5;border-radius:6px;padding:0 5px;background:var(--sat);color:var(--white);white-space:nowrap;}
-  .cal-ret{font-size:10px;font-weight:700;line-height:1.5;border-radius:6px;padding:0 5px;background:var(--accent, #2D6A4F);color:#fff;white-space:nowrap;}
-  .cal-wp{font-size:9px;line-height:1.5;border-radius:6px;padding:0 4px;border:1px solid var(--stamp-red);color:var(--stamp-red);background:rgba(232,93,81,0.12);white-space:nowrap;}
+  .cal-out{background:var(--sat);color:var(--white);}
+  .cal-ret{background:var(--accent, #2D6A4F);color:#fff;}
+  .cal-out,.cal-ret,.cal-wp{font-size:9.5px;font-weight:700;line-height:1.55;border-radius:6px;padding:0 5px;white-space:nowrap;}
+  .cal-wp{border:1px solid var(--stamp-red);color:var(--stamp-red);background:rgba(232,93,81,0.12);}
   .cal-wp.unset{border-color:var(--gold);color:var(--gold);background:rgba(224,172,78,0.12);}
+  .cal-wp .wc{display:none;font-style:normal;}
   .bk-b small{font-size:10px;margin-left:1px;}
   .bk-time{display:flex;align-items:center;gap:3px;}
   .bk-time select{font-family:var(--sans);font-size:13px;padding:5px 3px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);}
@@ -222,6 +224,9 @@
     .cal-holiday{display:none;}
     .cal-holiday-jp{display:none;}
     .cal-chip{font-size:8px;padding:1px 4px;}
+    .cal-out,.cal-ret,.cal-wp{font-size:8px;padding:0 3px;}
+    .cal-wp .wn{display:none;}
+    .cal-wp .wc{display:inline;}
   }
   /* backup */
   .bk-h{font-size:13px;font-weight:700;margin:6px 0 4px;}
@@ -387,6 +392,7 @@
 (function(){
   const WEEKDAYS = ['일','월','화','수','목','금','토'];
   let state = { settings:null, overrides:{}, holidays:{}, holidaysJP:{}, scenarios:[], activeScenario:null };
+  const MIN_YEAR = 2026;   // 이보다 이전 연도는 연도 선택 칸에 안 보여요
   let selectedYear = 2026;
   let selectedMonth = new Date().getMonth(); // 0-11
   let selectedDate = null; // 'YYYY-MM-DD' currently clicked in calendar
@@ -733,7 +739,7 @@
     const years = new Set();
     for(let y=selectedYear-3; y<=selectedYear+5; y++) years.add(y);
     state.scenarios.forEach(s=>s.entries.forEach(e=>years.add(Number(e.date.slice(0,4)))));
-    const sorted = Array.from(years).sort((a,b)=>a-b);
+    const sorted = Array.from(years).filter(y=>y>=MIN_YEAR).sort((a,b)=>a-b);
     sel.innerHTML = sorted.map(y=>`<option value="${y}" ${y===selectedYear?'selected':''}>${y}년</option>`).join('');
   }
 
@@ -924,11 +930,14 @@
     }).join('');
   }
   // 캘린더: 경고가 뜬 이유(어떤 예약이 빠졌는지)를 작은 배지로 보여줘요
-  function bkWarnPills(e){
-    return bkWarnKinds(e).map(k=>{
-      const x = BK_KINDS.find(y=>y[0]===k), st = bkState(e,k);
-      return `<span class="cal-wp ${st}" title="${x[2]}: ${st==='need'?'예약 필요':'확인 안 됨'}">${x[1]}${x[3]}${st==='need'?'⚠':'?'}</span>`;
-    }).join('');
+  // 캘린더 경고: 일정마다 배지 하나로 합쳐서 (예: ⚠ 항공·호텔) 보여줘요. 자세한 내용은 마우스를 올리면 나와요.
+  function bkWarnPill(e){
+    const kinds = bkWarnKinds(e); if(!kinds.length) return '';
+    const grp = {flightOut:'항공', flightRet:'항공', hotel:'호텔', moveOut:'이동', moveRet:'이동'};
+    const names = [...new Set(kinds.map(k=>grp[k]))];
+    const hasNeed = kinds.some(k=>bkState(e,k)==='need');
+    const tip = kinds.map(k=>`${BK_KINDS.find(y=>y[0]===k)[2]}: ${bkState(e,k)==='need'?'예약 필요':'확인 안 됨'}`).join('&#10;');
+    return `<span class="cal-wp ${hasNeed?'need':'unset'}" title="${tip}">⚠<span class="wn"> ${names.join('·')}</span><i class="wc">${names.length}</i></span>`;
   }
   // 예전에 하나로 저장된 항공·이동수단은 '출발'로 옮겨요
   function migrateTrips(){
@@ -984,9 +993,12 @@
         dt.className = 'bk-detail';
         dt.innerHTML = '<td colspan="7"><div class="bk-box"></div></td>';
         tbody.appendChild(dt);
-        mountBooking(dt.querySelector('.bk-box'), ()=>e.trip || (e.trip = {}), ()=>e.date, async (what)=>{
-          if(e.trip && !cleanTrip(e.trip)) delete e.trip;
-          renderCalendar();                       // 날짜·상태를 고치면 캘린더(막대·귀국 배지)에 바로 반영
+        // 다른 기기·서버 동기화로 데이터가 새로 불러와져도 항상 '지금' 일정(id로 찾기)을 고쳐요
+        const cur = ()=> (activeScenario().entries.find(x=>x.id===e.id) || e);
+        mountBooking(dt.querySelector('.bk-box'), ()=>{ const c = cur(); return c.trip || (c.trip = {}); }, ()=>cur().date, async (what)=>{
+          const c = cur();
+          if(c.trip && !cleanTrip(c.trip)) delete c.trip;
+          renderCalendar();                       // 날짜·상태를 고치면 캘린더(막대·배지)에 바로 반영
           await storeSet('scenarios', state.scenarios);
           if(what==='state') renderLedger();
         });
@@ -1025,7 +1037,7 @@
 
     const yj = document.getElementById('calYearJump');
     const yOpts = [];
-    for(let y=selectedYear-6; y<=selectedYear+6; y++) yOpts.push(y);
+    for(let y=Math.max(MIN_YEAR, selectedYear-6); y<=selectedYear+6; y++) yOpts.push(y);
     yj.innerHTML = yOpts.map(y=>`<option value="${y}" ${y===selectedYear?'selected':''}>${y}</option>`).join('');
     const mj = document.getElementById('calMonthJump');
     mj.innerHTML = Array.from({length:12},(_,i)=>i).map(m=>`<option value="${m}" ${m===selectedMonth?'selected':''}>${m+1}</option>`).join('');
@@ -1084,27 +1096,28 @@
         const label = (isStart || col===0) ? bkEsc((e.memo||'여행').slice(0,10)) : '&nbsp;';
         html += `<div class="cal-trip${isStart?' t-start':''}${isEnd?' t-end':''}${col===6&&!isEnd?' t-wkend':''}" title="${bkEsc(e.memo||'일정')}: ${sp.start} ~ ${sp.end}">${label}</div>`;
       });
+      const warnPills = [];
       entries.forEach(e=>{
         // 출국~귀국으로 이어진 막대가 있으면, 연차를 안 쓰는 일정의 파란 메모 칩은 막대와 겹치니 숨겨요
         if(e.minutes || !spans.some(x=>x.e===e)){
           const calLabel = e.minutes ? typeLabel(e) : bkEsc((e.memo||'일정').slice(0,8));
           html += `<span class="cal-chip${e.minutes?'':' noleave'}" data-id="${e.id}" title="${e.minutes?'연차 사용':'연차 사용 안 함'}">${calLabel}<span class="x" data-id="${e.id}">✕</span></span>`;
         }
-        const pills = bkWarnPills(e);
-        if(pills) html += `<span class="cal-wrow">${pills}</span>`;
+        const wp = bkWarnPill(e); if(wp) warnPills.push(wp);
       });
-      // 출국일에는 출국 배지, 귀국일에는 귀국 배지
-      const pills2 = [];
+      // 배지는 칸 맨 아래 한 줄에 모아요: 출국 · 귀국(항공·이동수단은 아이콘만 합쳐서) · 경고
+      const outI = new Set(), retI = new Set();
       sc.entries.forEach(e=>{
-        if(bkOutDate(e,'flightOut','date')===iso) pills2.push(['out','✈','출국']);
-        if(bkOutDate(e,'moveOut','dep')===iso) pills2.push(['out','🚆','출국']);
+        if(bkOutDate(e,'flightOut','date')===iso) outI.add('✈');
+        if(bkOutDate(e,'moveOut','dep')===iso) outI.add('🚆');
+        if(bkDate(e,'flightRet','date')===iso) retI.add('✈');
+        if(bkDate(e,'moveRet','dep')===iso) retI.add('🚆');
       });
-      sc.entries.forEach(e=>{
-        if(bkDate(e,'flightRet','date')===iso) pills2.push(['ret','✈','귀국']);
-        if(bkDate(e,'moveRet','dep')===iso) pills2.push(['ret','🚆','귀국']);
-      });
-      const uniq = [...new Map(pills2.map(x=>[x.join('|'),x])).values()];
-      if(uniq.length) html += `<span class="cal-wrow">${uniq.map(([kind,ico,lab])=>`<span class="cal-${kind==='out'?'out':'ret'}" title="${lab}일">${ico} ${lab}</span>`).join('')}</span>`;
+      const badges = [];
+      if(outI.size) badges.push(`<span class="cal-out" title="출국일">${[...outI].join('')} 출국</span>`);
+      if(retI.size) badges.push(`<span class="cal-ret" title="귀국일">${[...retI].join('')} 귀국</span>`);
+      badges.push(...warnPills);
+      if(badges.length) html += `<div class="cal-badges">${badges.join('')}</div>`;
       cell.innerHTML = html;
 
       cell.addEventListener('click', (ev)=>{
@@ -1205,6 +1218,7 @@
   }
 
   function render(){
+    if(selectedYear < MIN_YEAR){ selectedYear = MIN_YEAR; selectedMonth = 0; }   // 이전 달/연도 버튼으로 2025년 이하로 못 가게
     renderYearSelect();
     renderTabs();
     renderSummary();
