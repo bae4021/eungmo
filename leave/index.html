@@ -173,6 +173,7 @@
   .bk-toggle{font-family:var(--sans);font-size:11px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);border-radius:999px;padding:1px 8px;cursor:pointer;}
   table.ledger tr.bk-detail td{background:var(--paper-2);padding:10px 12px;}
   .cal-chip.noleave{background:var(--sat);}
+  .cal-legend{font-size:11.5px;color:var(--ink-soft);margin:8px 2px 0;line-height:1.9;}
   .cal-badges{display:flex;flex-wrap:wrap;gap:2px;margin-top:2px;}
   .cal-trip{margin:0 -10px 0 -7px;height:16px;line-height:16px;font-size:10px;font-weight:700;color:var(--ink);background:rgba(224,172,78,0.28);border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);padding-left:9px;white-space:nowrap;overflow:hidden;}
   .cal-trip.t-start{margin-left:0;border-left:1px solid var(--gold);border-radius:8px 0 0 8px;padding-left:6px;}
@@ -180,13 +181,19 @@
   .cal-trip.t-wkend{margin-right:-7px;}
   .cal-out{background:var(--sat);color:var(--white);}
   .cal-ret{background:var(--accent, #2D6A4F);color:#fff;}
-  .cal-out,.cal-ret,.cal-wp{font-size:9.5px;font-weight:700;line-height:1.55;border-radius:6px;padding:0 5px;white-space:nowrap;}
+  .cal-out,.cal-ret,.cal-wp{font-size:9.5px;font-weight:700;line-height:1.55;border-radius:6px;padding:0 5px;white-space:nowrap;border:1px solid transparent;}
+  .cal-out.warn,.cal-ret.warn{background:rgba(232,93,81,0.14);color:var(--stamp-red);border-color:var(--stamp-red);}
   .cal-wp{border:1px solid var(--stamp-red);color:var(--stamp-red);background:rgba(232,93,81,0.12);}
   .cal-wp.unset{border-color:var(--gold);color:var(--gold);background:rgba(224,172,78,0.12);}
   .cal-wp .wc{display:none;font-style:normal;}
   .bk-b small{font-size:10px;margin-left:1px;}
+  .bk-f input.empty{border-color:var(--stamp-red);}
   .bk-time{display:flex;align-items:center;gap:3px;}
   .bk-time select{font-family:var(--sans);font-size:13px;padding:5px 3px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);}
+  .bk-note{flex-basis:100%;font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+  .bk-auto{font-family:var(--sans);font-size:11px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);border-radius:999px;padding:1px 8px;cursor:pointer;}
+  .bk-bar{margin-bottom:8px;}
+  .bk-allnone{font-family:var(--sans);font-size:12px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);border-radius:999px;padding:3px 12px;cursor:pointer;}
   .bk-hint{flex-basis:100%;font-size:11.5px;color:var(--stamp-red);margin-top:6px;}
 
   .cal-chip.confirm{background:var(--ink);}
@@ -296,6 +303,7 @@
       </div>
       <div class="cal-grid" id="calWeekdays"></div>
       <div class="cal-grid days" id="calDays"></div>
+      <p class="cal-legend">금색 막대 = 출국~귀국 기간 · <span class="cal-out">✈ 출국</span> <span class="cal-ret">✈ 귀국</span> = 항공 · <span class="cal-wp">⚠ …</span> 빨강 = 예약 필요, <span class="cal-wp unset">⚠ …</span> 노랑 = 아직 체크 안 함 (마우스를 올리면 자세히 나와요)</p>
 
       <h2 class="sec-title">일정 등록</h2>
       <div class="entry-form">
@@ -325,13 +333,13 @@
         </div>
         <div class="field memo">
           <label>메모</label>
-          <input type="text" id="fMemo" placeholder="예: 여행, 병원">
+          <input type="text" id="fMemo" placeholder="예: 가나자와 여행, 병원 진료">
         </div>
         <button class="btn" id="fAdd">+ 등록</button>
       </div>
       <h2 class="sec-title" id="ledgerTitle">일정 내역</h2>
       <table class="ledger">
-        <thead><tr><th>날짜</th><th>요일</th><th>구분</th><th>메모</th><th>예약</th><th style="text-align:right;">사용(일)</th><th></th></tr></thead>
+        <thead><tr><th>날짜</th><th>요일</th><th>연차 사용</th><th>메모</th><th>예약</th><th style="text-align:right;">사용(일)</th><th></th></tr></thead>
         <tbody id="ledgerBody"></tbody>
       </table>
 
@@ -843,7 +851,7 @@
 
   // ---------- 예약 (항공·호텔·이동수단) ----------
   // [키, 아이콘, 이름, 짧은 이름] — 항공·이동수단은 출국편과 귀국편을 따로 입력해요
-  const BK_KINDS = [['flightOut','✈','항공 · 출국','출국'],['flightRet','✈','항공 · 귀국','귀국'],['hotel','🏨','호텔',''],['moveOut','🚆','이동수단 · 출국','출국'],['moveRet','🚆','이동수단 · 귀국','귀국']];
+  const BK_KINDS = [['flightOut','✈','항공 · 출국','출국'],['flightRet','✈','항공 · 귀국','귀국'],['hotel','🏨','호텔',''],['moveOut','🚆','이동수단 · 출발','출발'],['moveRet','🚆','이동수단 · 귀국','귀국']];
   const BK_STATES = [['none','해당 없음'],['need','예약 필요'],['done','예약 완료']];
   const FLIGHT_F = [['date','탑승일','date'],['airline','항공사','text','예: 대한항공'],['time','탑승 시간','time'],['agency','예약처','text','예: 트립닷컴']];
   const MOVE_F = [['type','수단','text','예: KTX, 렌터카'],['dep','출발일','date'],['arr','도착일','date'],['time','시간','time'],['agency','예약처','text']];
@@ -861,6 +869,15 @@
     if(!e.date || e.date < todayLocal()) return [];
     return BK_KINDS.map(x=>x[0]).filter(k=>{ const st = bkState(e,k); return st==='unset' || st==='need'; });
   }
+  // 이동수단 날짜는 항공 출국/귀국 날짜와 자동으로 같게 맞춰요 (이동수단 날짜를 직접 고치면 그 항목만 자동 연동이 꺼져요)
+  function bkActive(x){ return !!(x && (x.s==='need'||x.s==='done')); }
+  function bkSync(trip, base){
+    const fo = trip.flightOut, fr = trip.flightRet, mo = trip.moveOut, mr = trip.moveRet;
+    const outD = (bkActive(fo) && fo.date) ? fo.date : base;
+    const retD = (bkActive(fr) && fr.date) ? fr.date : ((!bkActive(fo) && !bkActive(mo)) ? base : null);   // 출국편이 없으면 그 일정 날짜가 귀국일
+    if(bkActive(mo) && !mo.manual && outD){ mo.dep = outD; mo.arr = outD; }
+    if(bkActive(mr) && !mr.manual && retD){ mr.dep = retD; mr.arr = retD; }
+  }
   // 시간은 시·분(5분 단위)을 골라서 입력해요
   function bkTimeHtml(kind, f, val){
     const m0 = /^\d{2}:\d{2}$/.test(val||'') ? val.split(':') : ['',''];
@@ -871,16 +888,27 @@
     return `<span class="bk-time" data-kind="${kind}" data-f="${f}"><select class="bk-th" aria-label="시">${opt(hrs,m0[0],'시')}</select><b>:</b><select class="bk-tm" aria-label="분 (5분 단위)">${opt(mins,m0[1],'분')}</select></span>`;
   }
   function bkEditorHtml(trip){
-    return BK_KINDS.map(([k,ico,lab])=>{
+    const anyUnset = BK_KINDS.some(([k])=>!(trip[k] && trip[k].s));
+    const bar = anyUnset ? `<div class="bk-bar"><button type="button" class="bk-allnone">체크 안 한 항목 모두 '해당 없음'</button></div>` : '';
+    return bar + BK_KINDS.map(([k,ico,lab])=>{
       const x = trip[k] || {}, st = x.s || '';
       const seg = BK_STATES.map(([v,l])=>`<button type="button" class="bk-opt${st===v?' on '+v:''}" data-kind="${k}" data-state="${v}" aria-pressed="${st===v}">${l}</button>`).join('');
       // 귀국편은 날짜를 적어야 캘린더에 귀국일이 표시돼요
       const dateF = BK_FIELDS[k].find(f=>f[2]==='date');
-      const retHint = (/Ret$/.test(k) && (st==='need'||st==='done') && !x[dateF[0]]) ? `<div class="bk-hint">⚠ ${dateF[1]}을 입력해야 캘린더에 귀국일이 표시돼요</div>` : '';
+      const isMove = /^move/.test(k);
+      const retHint = (/Ret$/.test(k) && (st==='need'||st==='done') && !x[dateF[0]])
+        ? `<div class="bk-hint">⚠ 귀국 날짜가 없어요. ${isMove?'항공 귀국편 탑승일을 입력하면 자동으로 맞춰져요 (직접 입력해도 돼요)':`${dateF[1]}을 입력해야 캘린더에 귀국일이 표시돼요`}</div>` : '';
+      const fo = trip.flightOut, fr = trip.flightRet;
+      const badOrder = (k==='flightRet' && bkActive(fo) && bkActive(fr) && fo.date && fr.date && fr.date < fo.date)
+        ? `<div class="bk-hint">⚠ 귀국 탑승일이 출국 탑승일보다 빨라요. 날짜를 확인해 주세요</div>`
+        : (k==='hotel' && x.in && x.out && x.out < x.in) ? `<div class="bk-hint">⚠ 체크아웃이 체크인보다 빨라요. 날짜를 확인해 주세요</div>` : '';
+      const autoNote = (isMove && (st==='need'||st==='done'))
+        ? (x.manual ? `<div class="bk-note">날짜를 직접 입력했어요 · <button type="button" class="bk-auto" data-kind="${k}">출국/귀국 날짜와 맞추기</button></div>`
+                    : `<div class="bk-note">날짜는 출국/귀국 일정과 같게 자동으로 맞춰져요</div>`) : '';
       const fields = (st==='need'||st==='done')
         ? `<div class="bk-fields">${BK_FIELDS[k].map(([f,l,t,ph])=>t==='time'
           ? `<div class="bk-f"><span>${l}</span>${bkTimeHtml(k,f,x[f])}</div>`
-          : `<label class="bk-f"><span>${l}</span><input type="${t}" data-kind="${k}" data-f="${f}" value="${bkEsc(x[f])}"${ph?` placeholder="${ph}"`:''}></label>`).join('')}</div>${retHint}`
+          : `<label class="bk-f"><span>${l}</span><input type="${t}" data-kind="${k}" data-f="${f}" value="${bkEsc(x[f])}"${ph?` placeholder="${ph}"`:''}${(t==='date' && /Ret$/.test(k) && !x[f])?' class="empty"':''}></label>`).join('')}</div>${retHint}${badOrder}${autoNote}`
         : '';
       return `<div class="bk-card ${st?'st-'+st:'st-unset'}"><div class="bk-head"><span class="bk-ttl">${ico} ${lab}</span><span class="bk-seg">${seg}</span></div>${fields}</div>`;
     }).join('');
@@ -889,6 +917,13 @@
   function mountBooking(box, getTrip, getDate, onChange){
     const draw = ()=>{ box.innerHTML = bkEditorHtml(getTrip()); };
     box.addEventListener('click', ev=>{
+      if(ev.target.closest('.bk-allnone')){
+        const trip = getTrip();
+        BK_KINDS.forEach(([k])=>{ const x = trip[k] || (trip[k] = {}); if(!x.s) x.s = 'none'; });
+        draw(); onChange('state'); return;
+      }
+      const au = ev.target.closest('.bk-auto');
+      if(au){ const trip = getTrip(), x = trip[au.dataset.kind]; if(x){ x.manual = false; bkSync(trip, getDate()); draw(); onChange('field'); } return; }
       const b = ev.target.closest('.bk-opt'); if(!b) return;
       const trip = getTrip(), k = b.dataset.kind, v = b.dataset.state;
       const x = trip[k] || (trip[k] = {});
@@ -896,6 +931,7 @@
       if(x.s && x.s!=='none'){ const d = getDate(); const df = BK_FIELDS[k].find(f=>f[2]==='date'); const retOnly = (k==='flightRet' && !(trip.flightOut && (trip.flightOut.s==='need'||trip.flightOut.s==='done')))
                     || (k==='moveRet' && !(trip.moveOut && (trip.moveOut.s==='need'||trip.moveOut.s==='done')));   // 출발편 없이 귀국편만 있으면 그 일정 날짜가 귀국일
       if(d && df && (BK_PREFILL.has(k) || retOnly) && !x[df[0]]) x[df[0]] = d; }
+      bkSync(trip, getDate());
       draw(); onChange('state');
     });
     box.addEventListener('change', ev=>{
@@ -910,7 +946,11 @@
       const i = ev.target.closest('input[data-f]'); if(!i) return;
       const trip = getTrip(); const x = trip[i.dataset.kind] || (trip[i.dataset.kind] = {});
       x[i.dataset.f] = i.value.trim();
-      if(i.type==='date') draw();
+      if(i.type==='date'){
+        if(/^move/.test(i.dataset.kind)) x.manual = true;      // 이동수단 날짜를 직접 고치면 그 항목은 자동 연동 해제
+        bkSync(trip, getDate());                                // 항공 날짜를 고치면 이동수단 날짜도 같이 바뀌어요
+        draw();
+      }
       onChange('field');
     });
     draw();
@@ -931,12 +971,21 @@
   }
   // 캘린더: 경고가 뜬 이유(어떤 예약이 빠졌는지)를 작은 배지로 보여줘요
   // 캘린더 경고: 일정마다 배지 하나로 합쳐서 (예: ⚠ 항공·호텔) 보여줘요. 자세한 내용은 마우스를 올리면 나와요.
-  function bkWarnPill(e){
-    const kinds = bkWarnKinds(e); if(!kinds.length) return '';
-    const grp = {flightOut:'항공', flightRet:'항공', hotel:'호텔', moveOut:'이동', moveRet:'이동'};
+  // 항공 귀국편을 체크했는데 날짜가 없으면 캘린더에 귀국일을 표시할 수 없어요
+  function bkNoRetDate(e){
+    const x = e.trip && e.trip.flightRet;
+    return !!(e.date >= todayLocal() && bkActive(x) && !/^\d{4}-\d{2}-\d{2}$/.test(x.date||''));
+  }
+  function bkWarnPill(e, skip){
+    const kinds = bkWarnKinds(e).filter(k=>!(skip && skip.has(k)));
+    const noRet = bkNoRetDate(e);
+    if(!kinds.length && !noRet) return '';
+    const grp = {flightOut:'항공', flightRet:noRet?'귀국일 없음':'항공', hotel:'호텔', moveOut:'이동', moveRet:'이동'};
     const names = [...new Set(kinds.map(k=>grp[k]))];
+    if(noRet && !names.includes('귀국일 없음')) names.unshift('귀국일 없음');
     const hasNeed = kinds.some(k=>bkState(e,k)==='need');
-    const tip = kinds.map(k=>`${BK_KINDS.find(y=>y[0]===k)[2]}: ${bkState(e,k)==='need'?'예약 필요':'확인 안 됨'}`).join('&#10;');
+    const tip = kinds.map(k=>`${BK_KINDS.find(y=>y[0]===k)[2]}: ${bkState(e,k)==='need'?'예약 필요':'확인 안 됨'}`)
+      .concat(noRet ? ['항공 · 귀국: 탑승일이 비어 있어서 캘린더에 귀국일을 표시할 수 없어요 (일정 내역 › 예약 ▾에서 입력)'] : []).join('&#10;');
     return `<span class="cal-wp ${hasNeed?'need':'unset'}" title="${tip}">⚠<span class="wn"> ${names.join('·')}</span><i class="wc">${names.length}</i></span>`;
   }
   // 예전에 하나로 저장된 항공·이동수단은 '출발'로 옮겨요
@@ -950,6 +999,13 @@
         if(!x.date && x.dep) x.date = x.dep;
         delete x.dep; delete x.arr;
       });
+      // 이동수단 날짜: 저장된 값이 출국/귀국 날짜와 다르면 직접 입력한 걸로 보고 그대로 두고, 같거나 비어 있으면 자동으로 맞춰요
+      const base = e.date;
+      const outD = (bkActive(t.flightOut) && t.flightOut.date) ? t.flightOut.date : base;
+      const retD = (bkActive(t.flightRet) && t.flightRet.date) ? t.flightRet.date : null;
+      if(bkActive(t.moveOut) && t.moveOut.manual===undefined && t.moveOut.dep && t.moveOut.dep!==outD) t.moveOut.manual = true;
+      if(bkActive(t.moveRet) && t.moveRet.manual===undefined && t.moveRet.dep && t.moveRet.dep!==retD) t.moveRet.manual = true;
+      bkSync(t, base);
     }));
   }
   function renderLedger(){
@@ -982,7 +1038,13 @@
         openBk.has(e.id) ? openBk.delete(e.id) : openBk.add(e.id);
         renderLedger();
       });
-      tr.querySelector('.del').addEventListener('click', async ()=>{
+      tr.querySelector('.del').addEventListener('click', async (ev)=>{
+        const btn = ev.currentTarget;
+        if(btn.dataset.confirm!=='1'){
+          btn.dataset.confirm = '1'; btn.textContent = '삭제?'; btn.title = '한 번 더 누르면 삭제돼요';
+          setTimeout(()=>{ btn.dataset.confirm = '0'; btn.textContent = '✕'; btn.title = '삭제'; }, 2500);
+          return;
+        }
         sc.entries = sc.entries.filter(x=>x.id!==e.id);
         await storeSet('scenarios', state.scenarios);
         render();
@@ -1096,6 +1158,20 @@
         const label = (isStart || col===0) ? bkEsc((e.memo||'여행').slice(0,10)) : '&nbsp;';
         html += `<div class="cal-trip${isStart?' t-start':''}${isEnd?' t-end':''}${col===6&&!isEnd?' t-wkend':''}" title="${bkEsc(e.memo||'일정')}: ${sp.start} ~ ${sp.end}">${label}</div>`;
       });
+      // 이 칸에 출국/귀국 배지로 보이는 항목을 먼저 파악해요 (같은 항목의 경고 배지가 따로 또 나오지 않게)
+      const outI = new Set(), retI = new Set(), covered = new Map();
+      let outNeed = false, retNeed = false;
+      sc.entries.forEach(e=>{
+        const cv = new Set();
+        const chk = (kind, ico, isOut, date)=>{
+          if(date!==iso) return;
+          (isOut?outI:retI).add(ico); cv.add(kind);
+          if(bkState(e,kind)==='need'){ if(isOut) outNeed = true; else retNeed = true; }   // 예약 필요면 배지에 ⚠ 표시
+        };
+        chk('flightOut','✈',true, bkOutDate(e,'flightOut','date'));
+        chk('flightRet','✈',false, bkDate(e,'flightRet','date'));
+        if(cv.size) covered.set(e.id, cv);
+      });
       const warnPills = [];
       entries.forEach(e=>{
         // 출국~귀국으로 이어진 막대가 있으면, 연차를 안 쓰는 일정의 파란 메모 칩은 막대와 겹치니 숨겨요
@@ -1103,19 +1179,12 @@
           const calLabel = e.minutes ? typeLabel(e) : bkEsc((e.memo||'일정').slice(0,8));
           html += `<span class="cal-chip${e.minutes?'':' noleave'}" data-id="${e.id}" title="${e.minutes?'연차 사용':'연차 사용 안 함'}">${calLabel}<span class="x" data-id="${e.id}">✕</span></span>`;
         }
-        const wp = bkWarnPill(e); if(wp) warnPills.push(wp);
+        const wp = bkWarnPill(e, covered.get(e.id)); if(wp) warnPills.push(wp);
       });
-      // 배지는 칸 맨 아래 한 줄에 모아요: 출국 · 귀국(항공·이동수단은 아이콘만 합쳐서) · 경고
-      const outI = new Set(), retI = new Set();
-      sc.entries.forEach(e=>{
-        if(bkOutDate(e,'flightOut','date')===iso) outI.add('✈');
-        if(bkOutDate(e,'moveOut','dep')===iso) outI.add('🚆');
-        if(bkDate(e,'flightRet','date')===iso) retI.add('✈');
-        if(bkDate(e,'moveRet','dep')===iso) retI.add('🚆');
-      });
+      // 배지는 칸 맨 아래 한 줄에 모아요: 항공 출국 · 항공 귀국 · 경고(위 배지에 없는 항목만, 이동수단은 여기서만 안내)
       const badges = [];
-      if(outI.size) badges.push(`<span class="cal-out" title="출국일">${[...outI].join('')} 출국</span>`);
-      if(retI.size) badges.push(`<span class="cal-ret" title="귀국일">${[...retI].join('')} 귀국</span>`);
+      if(outI.size) badges.push(`<span class="cal-out${outNeed?' warn':''}" title="출국일${outNeed?' · 예약 필요':''}">${[...outI].join('')} 출국${outNeed?' ⚠':''}</span>`);
+      if(retI.size) badges.push(`<span class="cal-ret${retNeed?' warn':''}" title="귀국일${retNeed?' · 예약 필요':''}">${[...retI].join('')} 귀국${retNeed?' ⚠':''}</span>`);
       badges.push(...warnPills);
       if(badges.length) html += `<div class="cal-badges">${badges.join('')}</div>`;
       cell.innerHTML = html;
