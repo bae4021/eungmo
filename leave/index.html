@@ -179,6 +179,8 @@
   .cal-trip.t-start{margin-left:0;border-left:1px solid var(--gold);border-radius:8px 0 0 8px;padding-left:6px;}
   .cal-trip.t-end{margin-right:0;border-right:1px solid var(--gold);border-radius:0 8px 8px 0;}
   .cal-trip.t-wkend{margin-right:-7px;}
+  .cal-trip{margin-bottom:2px;}
+  .cal-trip.spacer{visibility:hidden;}
   .cal-out{background:var(--sat);color:var(--white);}
   .cal-ret{background:var(--sat);color:var(--white);}
   .cal-out,.cal-ret,.cal-wp{font-size:9.5px;font-weight:700;line-height:1.55;border-radius:6px;padding:0 5px;white-space:nowrap;border:1px solid transparent;}
@@ -187,6 +189,16 @@
   .cal-wp .wc{display:none;font-style:normal;}
   .bk-b small{font-size:10px;margin-left:1px;}
   .bk-f input.empty{border-color:var(--stamp-red);}
+  .bk-hitem{border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px;margin-top:8px;background:var(--paper);}
+  .bk-hhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .bk-hn{font-size:12px;font-weight:700;color:var(--ink-soft);}
+  .bk-hopt{font-family:var(--sans);font-size:12px;padding:4px 10px;border:0;border-right:1px solid var(--line-strong);background:var(--white);color:var(--ink-soft);cursor:pointer;}
+  .bk-hopt:last-child{border-right:0;}
+  .bk-hopt.on.need{background:var(--stamp-red);color:#1A1D22;font-weight:700;}
+  .bk-hopt.on.done{background:var(--stamp-green);color:#1A1D22;font-weight:700;}
+  .bk-hdel{margin-left:auto;font-family:var(--sans);font-size:12px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);border-radius:999px;padding:1px 8px;cursor:pointer;}
+  .bk-hadd-wrap{margin-top:8px;}
+  .bk-hadd{font-family:var(--sans);font-size:12px;border:1px dashed var(--line-strong);background:transparent;color:var(--ink);border-radius:999px;padding:4px 14px;cursor:pointer;}
   .bk-time{display:flex;align-items:center;gap:3px;}
   .bk-time select{font-family:var(--sans);font-size:13px;padding:5px 3px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);}
   .bk-note{flex-basis:100%;font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
@@ -302,7 +314,7 @@
       </div>
       <div class="cal-grid" id="calWeekdays"></div>
       <div class="cal-grid days" id="calDays"></div>
-      <p class="cal-legend">금색 막대 = 출국~귀국 기간 · <span class="cal-out">✈ 출국</span> <span class="cal-ret">✈ 귀국</span> = 항공 · <span class="cal-out warn">✈ 출국 예약 필요</span> = 항공 예약 필요 · <span class="cal-wp">⚠ 호텔·이동</span> = 호텔·이동수단 예약 필요</p>
+      <p class="cal-legend">금색 막대 = 출국~귀국 기간 · <span class="cal-out">✈ 출국</span> <span class="cal-ret">✈ 귀국</span> = 항공 · <span class="cal-out warn">✈ 출국 예약 필요</span> = 항공 예약 필요 · <span class="cal-wp">⚠ 호텔·이동</span> = 호텔 일정이 없는 날 · 호텔·이동수단 예약 필요</p>
 
       <h2 class="sec-title">일정 등록</h2>
       <div class="entry-form">
@@ -862,7 +874,39 @@
   const BK_PREFILL = new Set(['flightOut','hotel','moveOut']);   // 일정 날짜를 미리 채워주는 항목 (귀국편은 직접 입력)
   const BK_SYM = {none:'–', need:'⚠', done:'✓', unset:'?'};
   function bkEsc(v){ return String(v==null?'':v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  function bkState(e,k){ const x = e && e.trip && e.trip[k]; return x && x.s ? x.s : 'unset'; }
+  // 호텔은 한 일정에 여러 개 (trip.hotels = [{s:'need'|'done', in, out, name, agency}, ...]), '해당 없음'은 trip.hotel.s==='none'
+  function bkHotels(t){ return (t && Array.isArray(t.hotels)) ? t.hotels : []; }
+  function isDateStr(v){ return /^\d{4}-\d{2}-\d{2}$/.test(v||''); }
+  function bkDaysBetween(a,b){
+    const out = [], [y1,m1,d1] = a.split('-').map(Number), [y2,m2,d2] = b.split('-').map(Number);
+    const d = new Date(y1,m1-1,d1), end = new Date(y2,m2-1,d2); let guard = 0;
+    while(d<=end && guard++<400){ out.push(`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`); d.setDate(d.getDate()+1); }
+    return out;
+  }
+  // 일정 기간(출국~귀국) 중 호텔이 하나도 등록 안 된 날짜 (체크인~체크아웃 당일까지 포함, 오늘 이후만)
+  function hotelGapDays(e){
+    const t = e && e.trip;
+    if(!t || (t.hotel && t.hotel.s==='none')) return [];
+    const sp = tripSpan(e); if(!sp) return [];
+    const covered = new Set();
+    bkHotels(t).forEach(h=>{
+      if(!isDateStr(h.in)) return;
+      let b = isDateStr(h.out) ? h.out : h.in; if(b < h.in) b = h.in;
+      bkDaysBetween(h.in, b).forEach(d=>covered.add(d));
+    });
+    const today = todayLocal();
+    return bkDaysBetween(sp.start, sp.end).filter(d=>!covered.has(d) && d>=today);
+  }
+  function bkState(e,k){
+    const t = e && e.trip;
+    if(k==='hotel'){
+      if(!t) return 'unset';
+      if(t.hotel && t.hotel.s==='none') return 'none';
+      const hs = bkHotels(t); if(!hs.length) return 'unset';
+      return (hs.some(h=>h.s==='need') || hotelGapDays(e).length) ? 'need' : 'done';
+    }
+    const x = t && t[k]; return x && x.s ? x.s : 'unset';
+  }
   // 오늘 이후 일정 중에서 '미확인'이거나 '예약 필요'인 항목이 있으면 경고
   function bkWarnKinds(e){
     if(!e.date || e.date < todayLocal()) return [];
@@ -886,10 +930,32 @@
     const opt = (list, cur, ph)=>`<option value="">${ph}</option>` + list.map(v=>`<option value="${v}"${v===cur?' selected':''}>${v}</option>`).join('');
     return `<span class="bk-time" data-kind="${kind}" data-f="${f}"><select class="bk-th" aria-label="시">${opt(hrs,m0[0],'시')}</select><b>:</b><select class="bk-tm" aria-label="분 (5분 단위)">${opt(mins,m0[1],'분')}</select></span>`;
   }
-  function bkEditorHtml(trip){
-    const anyUnset = BK_KINDS.some(([k])=>!(trip[k] && trip[k].s));
+  function bkHotelCardHtml(trip, baseDate){
+    const none = !!(trip.hotel && trip.hotel.s==='none');
+    const hs = bkHotels(trip);
+    const st = none ? 'none' : (hs.length ? (hs.some(h=>h.s==='need') ? 'need' : 'done') : '');
+    const items = none ? '' : hs.map((h,i)=>{
+      const fields = BK_FIELDS.hotel.map(([f,l,t,ph])=>`<label class="bk-f"><span>${l}</span><input type="${t}" data-kind="hotel" data-hi="${i}" data-f="${f}" value="${bkEsc(h[f])}"${ph?` placeholder="${ph}"`:''}></label>`).join('');
+      const order = (h.in && h.out && h.out < h.in) ? `<div class="bk-hint">⚠ 체크아웃이 체크인보다 빨라요. 날짜를 확인해 주세요</div>` : '';
+      const seg = [['need','예약 필요'],['done','예약 완료']].map(([v,l])=>`<button type="button" class="bk-hopt${h.s===v?' on '+v:''}" data-i="${i}" data-state="${v}" aria-pressed="${h.s===v}">${l}</button>`).join('');
+      return `<div class="bk-hitem"><div class="bk-hhead"><span class="bk-hn">호텔 ${i+1}</span><span class="bk-seg">${seg}</span><button type="button" class="bk-hdel" data-i="${i}" title="이 호텔 삭제">✕</button></div><div class="bk-fields">${fields}</div>${order}</div>`;
+    }).join('');
+    let gap = '';
+    if(!none){
+      const gaps = hotelGapDays({date:baseDate, trip});
+      if(gaps.length){
+        const txt = gaps.slice(0,8).map(d=>`${Number(d.slice(5,7))}/${Number(d.slice(8))}`).join(', ') + (gaps.length>8?` 외 ${gaps.length-8}일`:'');
+        gap = `<div class="bk-hint">⚠ 호텔 일정이 없는 날: ${txt}${hs.length?'':' (호텔을 추가하거나 \'해당 없음\'을 선택해 주세요)'}</div>`;
+      }
+    }
+    const add = none ? '' : `<div class="bk-hadd-wrap"><button type="button" class="bk-hadd">+ 호텔 추가</button></div>`;
+    return `<div class="bk-card ${st?'st-'+st:'st-unset'}"><div class="bk-head"><span class="bk-ttl">🏨 호텔</span><span class="bk-seg"><button type="button" class="bk-opt${none?' on none':''}" data-kind="hotel" data-state="none" aria-pressed="${none}">해당 없음</button></span></div>${items}${gap}${add}</div>`;
+  }
+  function bkEditorHtml(trip, baseDate){
+    const anyUnset = BK_KINDS.some(([k])=> k==='hotel' ? (!(trip.hotel && trip.hotel.s) && !bkHotels(trip).length) : !(trip[k] && trip[k].s));
     const bar = anyUnset ? `<div class="bk-bar"><button type="button" class="bk-allnone">체크 안 한 항목 모두 '해당 없음'</button></div>` : '';
     return bar + BK_KINDS.map(([k,ico,lab])=>{
+      if(k==='hotel') return bkHotelCardHtml(trip, baseDate);
       const x = trip[k] || {}, st = x.s || '';
       const seg = BK_STATES.map(([v,l])=>`<button type="button" class="bk-opt${st===v?' on '+v:''}" data-kind="${k}" data-state="${v}" aria-pressed="${st===v}">${l}</button>`).join('');
       // 귀국편은 날짜를 적어야 캘린더에 귀국일이 표시돼요
@@ -900,7 +966,7 @@
       const fo = trip.flightOut, fr = trip.flightRet;
       const badOrder = (k==='flightRet' && bkActive(fo) && bkActive(fr) && fo.date && fr.date && fr.date < fo.date)
         ? `<div class="bk-hint">⚠ 귀국 탑승일이 출국 탑승일보다 빨라요. 날짜를 확인해 주세요</div>`
-        : (k==='hotel' && x.in && x.out && x.out < x.in) ? `<div class="bk-hint">⚠ 체크아웃이 체크인보다 빨라요. 날짜를 확인해 주세요</div>` : '';
+        : '';
       const autoNote = (isMove && (st==='need'||st==='done'))
         ? (x.manual ? `<div class="bk-note">날짜를 직접 입력했어요 · <button type="button" class="bk-auto" data-kind="${k}">출국/귀국 날짜와 맞추기</button></div>`
                     : `<div class="bk-note">날짜는 출국/귀국 일정과 같게 자동으로 맞춰져요</div>`) : '';
@@ -914,13 +980,31 @@
   }
   // box 안에 항공·호텔·이동수단 입력칸을 만들어요. 같은 버튼을 다시 누르면 선택이 풀려요.
   function mountBooking(box, getTrip, getDate, onChange){
-    const draw = ()=>{ box.innerHTML = bkEditorHtml(getTrip()); };
+    const draw = ()=>{ box.innerHTML = bkEditorHtml(getTrip(), getDate()); };
     box.addEventListener('click', ev=>{
       if(ev.target.closest('.bk-allnone')){
         const trip = getTrip();
-        BK_KINDS.forEach(([k])=>{ const x = trip[k] || (trip[k] = {}); if(!x.s) x.s = 'none'; });
+        BK_KINDS.forEach(([k])=>{
+          if(k==='hotel' && bkHotels(trip).length) return;       // 호텔이 이미 등록돼 있으면 그대로 둬요
+          const x = trip[k] || (trip[k] = {}); if(!x.s) x.s = 'none';
+        });
         draw(); onChange('state'); return;
       }
+      if(ev.target.closest('.bk-hadd')){
+        const trip = getTrip();
+        if(trip.hotel && trip.hotel.s==='none') delete trip.hotel.s;
+        const hs = trip.hotels || (trip.hotels = []), prev = hs[hs.length-1];
+        const fo = trip.flightOut, fr = trip.flightRet;
+        // 첫 호텔은 출국일~귀국일로, 이어서 추가하면 이전 호텔 체크아웃일부터 시작해요
+        const inD = prev ? (prev.out || '') : ((bkActive(fo) && fo.date) ? fo.date : (getDate() || ''));
+        const outD = prev ? '' : ((bkActive(fr) && fr.date) ? fr.date : '');
+        hs.push({s:'need', in:inD, out:outD, name:'', agency:''});
+        draw(); onChange('state'); return;
+      }
+      const hdel = ev.target.closest('.bk-hdel');
+      if(hdel){ const hs = bkHotels(getTrip()); hs.splice(Number(hdel.dataset.i), 1); draw(); onChange('state'); return; }
+      const hopt = ev.target.closest('.bk-hopt');
+      if(hopt){ const h = bkHotels(getTrip())[Number(hopt.dataset.i)]; if(h){ h.s = hopt.dataset.state; draw(); onChange('state'); } return; }
       const au = ev.target.closest('.bk-auto');
       if(au){ const trip = getTrip(), x = trip[au.dataset.kind]; if(x){ x.manual = false; bkSync(trip, getDate()); draw(); onChange('field'); } return; }
       const b = ev.target.closest('.bk-opt'); if(!b) return;
@@ -943,6 +1027,12 @@
         x[w.dataset.f] = h.value ? `${h.value}:${m.value}` : ''; onChange('field'); return;
       }
       const i = ev.target.closest('input[data-f]'); if(!i) return;
+      if(i.dataset.hi !== undefined){                                   // 호텔 항목
+        const h = bkHotels(getTrip())[Number(i.dataset.hi)]; if(!h) return;
+        h[i.dataset.f] = i.value.trim();
+        if(i.type==='date') draw();
+        onChange('field'); return;
+      }
       const trip = getTrip(); const x = trip[i.dataset.kind] || (trip[i.dataset.kind] = {});
       x[i.dataset.f] = i.value.trim();
       if(i.type==='date'){
@@ -958,6 +1048,7 @@
   function cleanTrip(t){
     const o = {};
     BK_KINDS.forEach(([k])=>{ const x = t[k]; if(x && x.s) o[k] = x.s==='none' ? {s:'none'} : Object.assign({}, x); });
+    if(bkHotels(t).length) o.hotels = bkHotels(t).map(h=>Object.assign({}, h));
     return Object.keys(o).length ? o : null;
   }
   const openBk = new Set();
@@ -974,6 +1065,11 @@
       const t = e.trip; if(!t) return;
       if(t.flight){ if(!t.flightOut) t.flightOut = t.flight; delete t.flight; }
       if(t.move){ if(!t.moveOut) t.moveOut = t.move; delete t.move; }
+      if(t.hotel && t.hotel.s!=='none'){                                // 예전 호텔 1개 → 호텔 목록
+        const h = t.hotel;
+        if((h.s==='need'||h.s==='done') && !bkHotels(t).length) t.hotels = [{s:h.s, in:h.in||'', out:h.out||'', name:h.name||'', agency:h.agency||''}];
+        delete t.hotel;
+      }
       ['flightOut','flightRet','moveOut','moveRet'].forEach(k=>{   // 출발일·도착일 → 탑승일 하나로
         const x = t[k]; if(!x) return;
         if(!x.date && x.dep) x.date = x.dep;
@@ -1097,6 +1193,10 @@
     const sc = activeScenario();
     const todayStr = todayLocal();
     const spans = sc.entries.map(e=>({e, sp:tripSpan(e)})).filter(x=>x.sp);
+    spans.sort((a,b)=>a.sp.start.localeCompare(b.sp.start) || a.sp.end.localeCompare(b.sp.end) || String(a.e.id).localeCompare(String(b.e.id)));
+    const laneEnd = [];                                  // 겹치는 일정이 있어도 칸마다 같은 높이에 오도록 줄 번호를 정해요
+    spans.forEach(x=>{ let L = laneEnd.findIndex(end=>end < x.sp.start); if(L<0) L = laneEnd.length; laneEnd[L] = x.sp.end; x.lane = L; });
+    const gapSets = new Map(sc.entries.map(e=>[e.id, new Set(hotelGapDays(e))]));
 
     for(let i=0;i<totalCells;i++){
       const dayOffset = i - startWeekday + 1;
@@ -1130,14 +1230,18 @@
       const entries = sc.entries.filter(e=>e.date===iso);
 
       let html = `<div class="cal-daynum">${cellDay}</div>`;
-      if(hday) html += `<div class="cal-holiday">${hday.name}</div>`;
-      if(jpday) html += `<div class="cal-holiday-jp" title="일본 공휴일">🇯🇵 ${jpday.name}</div>`;
-      // 여행 기간 막대 (출발일 ~ 귀국일, 날짜 칸을 가로질러 이어져요)
-      spans.filter(x=>x.sp.start<=iso && iso<=x.sp.end).forEach(({e,sp})=>{
-        const isStart = iso===sp.start, isEnd = iso===sp.end, col = i%7;
+      // 여행 기간 막대 (출국일 ~ 귀국일): 공휴일 표시가 있어도 끊기지 않게 항상 날짜 바로 아래 같은 높이에 둬요
+      const here = spans.filter(x=>x.sp.start<=iso && iso<=x.sp.end);
+      const maxLane = here.reduce((m,x)=>Math.max(m,x.lane), -1);
+      for(let L=0; L<=maxLane; L++){
+        const x = here.find(y=>y.lane===L);
+        if(!x){ html += '<div class="cal-trip spacer">&nbsp;</div>'; continue; }
+        const {e, sp} = x, isStart = iso===sp.start, isEnd = iso===sp.end, col = i%7;
         const label = (isStart || col===0) ? bkEsc((e.memo||'여행').slice(0,10)) : '&nbsp;';
         html += `<div class="cal-trip${isStart?' t-start':''}${isEnd?' t-end':''}${col===6&&!isEnd?' t-wkend':''}" title="${bkEsc(e.memo||'일정')}: ${sp.start} ~ ${sp.end}">${label}</div>`;
-      });
+      }
+      if(hday) html += `<div class="cal-holiday">${hday.name}</div>`;
+      if(jpday) html += `<div class="cal-holiday-jp" title="일본 공휴일">🇯🇵 ${jpday.name}</div>`;
       entries.forEach(e=>{
         // 출국~귀국으로 이어진 막대가 있으면, 연차를 안 쓰는 일정의 파란 메모 칩은 막대와 겹치니 숨겨요
         if(e.minutes || !spans.some(x=>x.e===e)){
@@ -1159,8 +1263,8 @@
         mark('out', bkOutDate(e,'flightOut','date'), 'flightOut');
         mark('ret', bkDate(e,'flightRet','date'), 'flightRet');
         if(!isFuture) return;
-        const hd = e.trip && e.trip.hotel;
-        if(bkState(e,'hotel')==='need' && (isDate(hd && hd.in) ? hd.in : e.date)===iso) needItems.add('호텔');
+        bkHotels(e.trip).forEach(h=>{ if(h.s==='need' && (isDate(h.in) ? h.in : e.date)===iso) needItems.add('호텔'); });   // 예약 필요 호텔은 체크인일에
+        if(gapSets.get(e.id) && gapSets.get(e.id).has(iso)) needItems.add('호텔');                                        // 호텔 일정이 없는 날
         if(bkState(e,'moveOut')==='need' && bkOutDate(e,'moveOut','date')===iso) needItems.add('이동');
         if(bkState(e,'moveRet')==='need' && bkDate(e,'moveRet','date')===iso) needItems.add('이동');
       });
@@ -1172,7 +1276,7 @@
       });
       if(needItems.size){
         const names = [...needItems];
-        badges.push(`<span class="cal-wp" title="예약 필요: ${names.join(', ')}">⚠<span class="wn"> ${names.join('·')}</span><i class="wc">${names.length}</i></span>`);
+        badges.push(`<span class="cal-wp" title="${names.map(n=>n==='호텔'?'호텔: 예약 필요 또는 호텔 일정 없음':'이동수단: 예약 필요').join(' / ')}">⚠<span class="wn"> ${names.join('·')}</span><i class="wc">${names.length}</i></span>`);
       }
       if(badges.length) html += `<div class="cal-badges">${badges.join('')}</div>`;
       cell.innerHTML = html;
