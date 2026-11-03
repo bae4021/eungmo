@@ -203,6 +203,17 @@
   .bk-time select{font-family:var(--sans);font-size:13px;padding:5px 3px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);}
   .bk-note{flex-basis:100%;font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
   .bk-auto{font-family:var(--sans);font-size:11px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);border-radius:999px;padding:1px 8px;cursor:pointer;}
+  .fdays{margin:10px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper-2);}
+  .fdays[hidden]{display:none;}
+  .fdays-h{font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:8px;}
+  .fdays-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px 12px;}
+  .fday{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;}
+  .fday.off .fd-l{color:var(--ink-soft);}
+  .fday select{font-family:var(--sans);font-size:12.5px;padding:3px 4px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);}
+  .fdays-sum{margin-top:8px;font-size:12.5px;}
+  table.ledger tr.child td{color:var(--ink-soft);}
+  table.ledger tr.child td:nth-child(4)::before{content:'↳ ';}
+  .rng{color:var(--ink-soft);font-size:11px;}
   .bk-bar{margin-bottom:8px;}
   .bk-allnone{font-family:var(--sans);font-size:12px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);border-radius:999px;padding:3px 12px;cursor:pointer;}
   .bk-hint{flex-basis:100%;font-size:11.5px;color:var(--stamp-red);margin-top:6px;}
@@ -319,8 +330,12 @@
       <h2 class="sec-title">일정 등록</h2>
       <div class="entry-form">
         <div class="field">
-          <label>날짜</label>
+          <label>날짜 (시작일)</label>
           <input type="date" id="fDate">
+        </div>
+        <div class="field">
+          <label>종료일 <small style="font-weight:400;">(여러 날이면)</small></label>
+          <input type="date" id="fEnd">
         </div>
         <div class="field">
           <label>연차 사용 유무</label>
@@ -348,6 +363,7 @@
         </div>
         <button class="btn" id="fAdd">+ 등록</button>
       </div>
+      <div class="fdays" id="fDays" hidden></div>
       <h2 class="sec-title" id="ledgerTitle">일정 내역</h2>
       <table class="ledger">
         <thead><tr><th>날짜</th><th>요일</th><th>연차 사용</th><th>메모</th><th>예약</th><th style="text-align:right;">사용(일)</th><th></th></tr></thead>
@@ -909,15 +925,16 @@
   }
   // 오늘 이후 일정 중에서 '미확인'이거나 '예약 필요'인 항목이 있으면 경고
   function bkWarnKinds(e){
+    if(e.parent) return [];
     if(!e.date || e.date < todayLocal()) return [];
     return BK_KINDS.map(x=>x[0]).filter(k=>{ const st = bkState(e,k); return st==='unset' || st==='need'; });
   }
   // 이동수단 날짜는 항공 출국/귀국 날짜와 자동으로 같게 맞춰요 (이동수단 날짜를 직접 고치면 그 항목만 자동 연동이 꺼져요)
   function bkActive(x){ return !!(x && (x.s==='need'||x.s==='done')); }
-  function bkSync(trip, base){
+  function bkSync(trip, base, end){
     const fo = trip.flightOut, fr = trip.flightRet, mo = trip.moveOut, mr = trip.moveRet;
     const outD = (bkActive(fo) && fo.date) ? fo.date : base;
-    const retD = (bkActive(fr) && fr.date) ? fr.date : ((!bkActive(fo) && !bkActive(mo)) ? base : null);   // 출국편이 없으면 그 일정 날짜가 귀국일
+    const retD = (bkActive(fr) && fr.date) ? fr.date : (end ? end : ((!bkActive(fo) && !bkActive(mo)) ? base : null));   // 출국편이 없으면 그 일정 날짜가 귀국일
     if(bkActive(mo) && !mo.manual && outD){ mo.date = outD; }
     if(bkActive(mr) && !mr.manual && retD){ mr.date = retD; }
   }
@@ -979,7 +996,8 @@
     }).join('');
   }
   // box 안에 항공·호텔·이동수단 입력칸을 만들어요. 같은 버튼을 다시 누르면 선택이 풀려요.
-  function mountBooking(box, getTrip, getDate, onChange){
+  function mountBooking(box, getTrip, getDate, onChange, getEnd){
+    getEnd = getEnd || (()=>'');
     const draw = ()=>{ box.innerHTML = bkEditorHtml(getTrip(), getDate()); };
     box.addEventListener('click', ev=>{
       if(ev.target.closest('.bk-allnone')){
@@ -997,7 +1015,7 @@
         const fo = trip.flightOut, fr = trip.flightRet;
         // 첫 호텔은 출국일~귀국일로, 이어서 추가하면 이전 호텔 체크아웃일부터 시작해요
         const inD = prev ? (prev.out || '') : ((bkActive(fo) && fo.date) ? fo.date : (getDate() || ''));
-        const outD = prev ? '' : ((bkActive(fr) && fr.date) ? fr.date : '');
+        const outD = prev ? '' : ((bkActive(fr) && fr.date) ? fr.date : (getEnd() || ''));
         hs.push({s:'need', in:inD, out:outD, name:'', agency:''});
         draw(); onChange('state'); return;
       }
@@ -1006,7 +1024,7 @@
       const hopt = ev.target.closest('.bk-hopt');
       if(hopt){ const h = bkHotels(getTrip())[Number(hopt.dataset.i)]; if(h){ h.s = hopt.dataset.state; draw(); onChange('state'); } return; }
       const au = ev.target.closest('.bk-auto');
-      if(au){ const trip = getTrip(), x = trip[au.dataset.kind]; if(x){ x.manual = false; bkSync(trip, getDate()); draw(); onChange('field'); } return; }
+      if(au){ const trip = getTrip(), x = trip[au.dataset.kind]; if(x){ x.manual = false; bkSync(trip, getDate(), getEnd()); draw(); onChange('field'); } return; }
       const b = ev.target.closest('.bk-opt'); if(!b) return;
       const trip = getTrip(), k = b.dataset.kind, v = b.dataset.state;
       const x = trip[k] || (trip[k] = {});
@@ -1014,7 +1032,7 @@
       if(x.s && x.s!=='none'){ const d = getDate(); const df = BK_FIELDS[k].find(f=>f[2]==='date'); const retOnly = (k==='flightRet' && !(trip.flightOut && (trip.flightOut.s==='need'||trip.flightOut.s==='done')))
                     || (k==='moveRet' && !(trip.moveOut && (trip.moveOut.s==='need'||trip.moveOut.s==='done')));   // 출발편 없이 귀국편만 있으면 그 일정 날짜가 귀국일
       if(d && df && (BK_PREFILL.has(k) || retOnly) && !x[df[0]]) x[df[0]] = d; }
-      bkSync(trip, getDate());
+      bkSync(trip, getDate(), getEnd());
       draw(); onChange('state');
     });
     box.addEventListener('change', ev=>{
@@ -1037,7 +1055,7 @@
       x[i.dataset.f] = i.value.trim();
       if(i.type==='date'){
         if(/^move/.test(i.dataset.kind)) x.manual = true;      // 이동수단 날짜를 직접 고치면 그 항목은 자동 연동 해제
-        bkSync(trip, getDate());                                // 항공 날짜를 고치면 이동수단 날짜도 같이 바뀌어요
+        bkSync(trip, getDate(), getEnd());                                // 항공 날짜를 고치면 이동수단 날짜도 같이 바뀌어요
         draw();
       }
       onChange('field');
@@ -1081,7 +1099,7 @@
       const retD = (bkActive(t.flightRet) && t.flightRet.date) ? t.flightRet.date : null;
       if(bkActive(t.moveOut) && t.moveOut.manual===undefined && t.moveOut.date && t.moveOut.date!==outD) t.moveOut.manual = true;
       if(bkActive(t.moveRet) && t.moveRet.manual===undefined && t.moveRet.date && t.moveRet.date!==retD) t.moveRet.manual = true;
-      bkSync(t, base);
+      bkSync(t, base, e.endDate);
     }));
   }
   function renderLedger(){
@@ -1100,17 +1118,19 @@
       const d = new Date(e.date+'T00:00:00');
       const tr = document.createElement('tr');
       const warn = bkWarnKinds(e);
-      if(warn.length) tr.className = 'bk-warn';
+      const isChild = !!e.parent;
+      tr.className = (isChild ? 'child ' : '') + (warn.length ? 'bk-warn' : '');
       tr.innerHTML = `
-        <td>${e.date}</td>
+        <td>${e.date}${e.endDate?`<div class="rng">~ ${e.endDate.slice(5)}</div>`:''}</td>
         <td>${WEEKDAYS[d.getDay()]}</td>
         <td>${typeLabel(e)}</td>
-        <td>${e.memo||''}</td>
-        <td class="bkc">${bkBadges(e)}<button type="button" class="bk-toggle" aria-expanded="${openBk.has(e.id)}">예약 ${openBk.has(e.id)?'▴':'▾'}</button></td>
+        <td>${bkEsc(e.memo||'')}</td>
+        <td class="bkc">${isChild ? '<span class="rng">위 일정의 연차</span>' : `${bkBadges(e)}<button type="button" class="bk-toggle" aria-expanded="${openBk.has(e.id)}">예약 ${openBk.has(e.id)?'▴':'▾'}</button>`}</td>
         <td class="num">${e.minutes?fmtDays(e.minutes):'—'}</td>
         <td class="del" title="삭제">✕</td>
       `;
-      tr.querySelector('.bk-toggle').addEventListener('click', ()=>{
+      const tg = tr.querySelector('.bk-toggle');
+      if(tg) tg.addEventListener('click', ()=>{
         openBk.has(e.id) ? openBk.delete(e.id) : openBk.add(e.id);
         renderLedger();
       });
@@ -1121,12 +1141,12 @@
           setTimeout(()=>{ btn.dataset.confirm = '0'; btn.textContent = '✕'; btn.title = '삭제'; }, 2500);
           return;
         }
-        sc.entries = sc.entries.filter(x=>x.id!==e.id);
+        sc.entries = sc.entries.filter(x=>x.id!==e.id && x.parent!==e.id);
         await storeSet('scenarios', state.scenarios);
         render();
       });
       tbody.appendChild(tr);
-      if(openBk.has(e.id)){
+      if(openBk.has(e.id) && !isChild){
         const dt = document.createElement('tr');
         dt.className = 'bk-detail';
         dt.innerHTML = '<td colspan="7"><div class="bk-box"></div></td>';
@@ -1139,7 +1159,7 @@
           renderCalendar();                       // 날짜·상태를 고치면 캘린더(막대·배지)에 바로 반영
           await storeSet('scenarios', state.scenarios);
           if(what==='state') renderLedger();
-        });
+        }, ()=>cur().endDate || '');
       }
     });
     const totalMin = entries.reduce((s,e)=>s+e.minutes,0);
@@ -1164,7 +1184,7 @@
   }
   function tripSpan(e){
     const outs = [e.date, bkDate(e,'flightOut','date'), bkDate(e,'moveOut','date')].filter(Boolean).sort();
-    const rets = [bkDate(e,'flightRet','date'), bkDate(e,'moveRet','date')].filter(Boolean).sort();
+    const rets = [bkDate(e,'flightRet','date'), bkDate(e,'moveRet','date'), isDateStr(e.endDate) ? e.endDate : null].filter(Boolean).sort();
     if(!rets.length) return null;
     const start = outs[0], end = rets[rets.length-1];
     return end > start ? {start, end} : null;
@@ -1286,7 +1306,7 @@
           const id = ev.target.dataset.id;
           const chip = ev.target.parentElement;
           if(chip.dataset.confirm==='1'){
-            sc.entries = sc.entries.filter(x=>x.id!==id);
+            sc.entries = sc.entries.filter(x=>x.id!==id && x.parent!==id);
             storeSet('scenarios', state.scenarios).then(render);
           } else {
             chip.dataset.confirm='1';
@@ -1299,6 +1319,7 @@
         }
         selectedDate = iso;
         document.getElementById('fDate').value = iso;
+        renderFDays();
         if(other){
           selectedYear = cellYear; selectedMonth = cellMonth;
           render();
@@ -1415,6 +1436,37 @@
   document.getElementById('yNext').addEventListener('click', ()=>{ selectedYear++; render(); });
   document.getElementById('ySelect').addEventListener('change', (e)=>{ selectedYear = Number(e.target.value); render(); });
 
+  // 종료일을 넣으면(여러 날 일정) 날짜마다 연차 사용 여부를 고르는 목록이 나와요. 주말·공휴일은 기본이 'X', 평일은 '종일'이에요.
+  function renderFDays(){
+    const date = document.getElementById('fDate').value, end = document.getElementById('fEnd').value;
+    const box = document.getElementById('fDays');
+    const range = !!(date && end && end > date);
+    const typeField = document.getElementById('fType').closest('.field');
+    typeField.style.display = range ? 'none' : '';
+    document.getElementById('fCustomWrap').style.display = (!range && document.getElementById('fType').value==='custom') ? 'flex' : 'none';
+    if(!range){ box.hidden = true; box.innerHTML = ''; return; }
+    const keep = {}; box.querySelectorAll('select[data-d]').forEach(sel=>{ keep[sel.dataset.d] = sel.value; });
+    const days = bkDaysBetween(date, end).slice(0, 62);
+    const hol = new Map(); Object.values(state.holidays||{}).forEach(list=>(list||[]).forEach(h=>hol.set(h.date, h.name)));
+    const opt = (v,l,cur)=>`<option value="${v}"${cur===v?' selected':''}>${l}</option>`;
+    box.innerHTML = `<div class="fdays-h">날짜별 연차 사용 (주말·공휴일은 기본 X)</div><div class="fdays-grid">` + days.map(d=>{
+      const [y,m,dd] = d.split('-').map(Number), wd = new Date(y,m-1,dd).getDay(), off = wd===0 || wd===6 || hol.has(d);
+      const cur = keep[d] || (off ? 'none' : '480');
+      const note = hol.has(d) ? ` <small>${bkEsc(hol.get(d))}</small>` : '';
+      return `<div class="fday${off?' off':''}"><span class="fd-l">${m}/${dd} (${WEEKDAYS[wd]})${note}</span><select data-d="${d}">${opt('none','X',cur)}${opt('480','종일',cur)}${opt('240','오전 반차',cur)}${opt('240pm','오후 반차',cur)}</select></div>`;
+    }).join('') + `</div><div class="fdays-sum" id="fdSum"></div>`;
+    updateFDaysSum();
+  }
+  function updateFDaysSum(){
+    const sels = [...document.querySelectorAll('#fDays select[data-d]')]; if(!sels.length) return;
+    const min = sels.reduce((t,sel)=>t + (sel.value==='480'?480:(sel.value==='none'?0:240)), 0);
+    const n = sels.filter(sel=>sel.value!=='none').length;
+    document.getElementById('fdSum').innerHTML = `연차 사용: <b>${fmtDays(min)}일</b> (${n}일)`;
+  }
+  document.getElementById('fDate').addEventListener('change', renderFDays);
+  document.getElementById('fEnd').addEventListener('change', renderFDays);
+  document.getElementById('fDays').addEventListener('change', updateFDaysSum);
+
   document.getElementById('fType').addEventListener('change', (e)=>{
     document.getElementById('fCustomWrap').style.display = e.target.value==='custom' ? 'flex' : 'none';
   });
@@ -1422,25 +1474,42 @@
   document.getElementById('fAdd').addEventListener('click', async ()=>{
     const date = document.getElementById('fDate').value;
     if(!date){ alert('날짜를 선택해 주세요.'); return; }
-    const type = document.getElementById('fType').value;
-    let minutes, half=null;
-    if(type==='none') minutes = 0;
-    else if(type==='480') minutes = 480;
-    else if(type==='240'){ minutes = 240; half='am'; }
-    else if(type==='240pm'){ minutes = 240; half='pm'; }
-    else {
-      const h = Number(document.getElementById('fHour').value)||0;
-      const m = Number(document.getElementById('fMin').value)||0;
-      minutes = h*60+m;
-      if(minutes<=0){ alert('사용 시간을 입력해 주세요.'); return; }
-      if(minutes>480) minutes = 480;
-    }
+    const end = document.getElementById('fEnd').value;
+    if(end && end < date){ alert('종료일이 시작일보다 빨라요.'); return; }
     const memo = document.getElementById('fMemo').value.trim();
     const sc = activeScenario();
-    const entry = {id:uid(), date, minutes, half, memo};
-    sc.entries.push(entry);
+    if(end && end > date){
+      // 여러 날 일정: 일정 1개(시작일·종료일·예약 정보) + 연차를 쓰는 날마다 연차 항목
+      const days = bkDaysBetween(date, end);
+      if(days.length > 62){ alert('기간은 최대 62일까지 등록할 수 있어요.'); return; }
+      const pick = d=>{
+        const v = (document.querySelector('#fDays select[data-d="'+d+'"]')||{}).value || 'none';
+        return v==='480' ? {minutes:480, half:null} : v==='240' ? {minutes:240, half:'am'} : v==='240pm' ? {minutes:240, half:'pm'} : {minutes:0, half:null};
+      };
+      const first = pick(days[0]);
+      const main = {id:uid(), date, endDate:end, minutes:first.minutes, half:first.half, memo};
+      sc.entries.push(main);
+      days.slice(1).forEach(d=>{ const p = pick(d); if(p.minutes>0) sc.entries.push({id:uid(), date:d, minutes:p.minutes, half:p.half, memo, parent:main.id}); });
+    } else {
+      const type = document.getElementById('fType').value;
+      let minutes, half=null;
+      if(type==='none') minutes = 0;
+      else if(type==='480') minutes = 480;
+      else if(type==='240'){ minutes = 240; half='am'; }
+      else if(type==='240pm'){ minutes = 240; half='pm'; }
+      else {
+        const h = Number(document.getElementById('fHour').value)||0;
+        const m = Number(document.getElementById('fMin').value)||0;
+        minutes = h*60+m;
+        if(minutes<=0){ alert('사용 시간을 입력해 주세요.'); return; }
+        if(minutes>480) minutes = 480;
+      }
+      sc.entries.push({id:uid(), date, minutes, half, memo});
+    }
     await storeSet('scenarios', state.scenarios);
     document.getElementById('fMemo').value='';
+    document.getElementById('fEnd').value='';
+    renderFDays();
     selectedYear = Number(date.slice(0,4));
     selectedMonth = Number(date.slice(5,7)) - 1;
     selectedDate = date;
