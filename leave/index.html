@@ -882,7 +882,7 @@
 
   // ---------- 예약 (항공·호텔·이동수단) ----------
   // [키, 아이콘, 이름, 짧은 이름] — 항공·이동수단은 출국편과 귀국편을 따로 입력해요
-  const BK_KINDS = [['flightOut','✈','항공 · 출국','출국'],['flightRet','✈','항공 · 귀국','귀국'],['hotel','🏨','호텔',''],['moveOut','🚆','이동수단 · 출발','출발'],['moveRet','🚆','이동수단 · 귀국','귀국']];
+  const BK_KINDS = [['flightOut','✈','항공 · 출국','출국'],['flightRet','✈','항공 · 귀국','귀국'],['hotel','🏨','호텔','호텔'],['moveOut','🚆','이동수단 · 출발','출발'],['moveRet','🚆','이동수단 · 귀국','귀국']];
   const BK_STATES = [['none','해당 없음'],['need','예약 필요'],['done','예약 완료']];
   const FLIGHT_F = [['date','탑승일','date'],['airline','항공사','text','예: 대한항공'],['time','탑승 시간','time'],['agency','예약처','text','예: 트립닷컴']];
   const MOVE_F = [['type','수단','text','예: KTX, 렌터카'],['date','탑승일','date'],['time','탑승 시간','time'],['agency','예약처','text']];
@@ -1186,19 +1186,31 @@
       tbody.innerHTML = `<tr class="empty-row"><td colspan="7">${selectedYear}년에 등록된 일정이 없습니다.</td></tr>`;
       return;
     }
-    entries.forEach(e=>{
+    // 같은 해 안에 일정(부모)이 있는 연차 항목(↳)은 부모 줄에 합쳐서 보여줘요
+    const idSet = new Set(entries.map(x=>x.id)), kidsOf = {};
+    entries.forEach(x=>{ if(x.parent && idSet.has(x.parent)) (kidsOf[x.parent] = kidsOf[x.parent] || []).push(x); });
+    const shown = entries.filter(x=>!(x.parent && idSet.has(x.parent)));
+    shown.forEach(e=>{
       const d = new Date(e.date+'T00:00:00');
       const tr = document.createElement('tr');
       const warn = bkWarnKinds(e);
       const isChild = !!e.parent;
+      const isRange = !!e.endDate && !isChild;
+      const group = isRange ? [e].concat(kidsOf[e.id] || []) : [e];
+      const gMin = group.reduce((t,x)=>t + x.minutes, 0);
+      const dayTxt = x=>{ const dt = new Date(x.date+'T00:00:00'); return `${dt.getMonth()+1}/${dt.getDate()}(${WEEKDAYS[dt.getDay()]})${x.minutes===240?' 반차':(x.minutes<480?` ${x.minutes/60}H`:'')}`; };
+      const wdTxt = isRange ? `${WEEKDAYS[d.getDay()]}~${WEEKDAYS[new Date(e.endDate+'T00:00:00').getDay()]}` : WEEKDAYS[d.getDay()];
+      const leaveTxt = isRange
+        ? (gMin ? `연차 ${fmtDays(gMin)}일<div class="rng">${group.filter(x=>x.minutes>0).sort((a,b)=>a.date.localeCompare(b.date)).map(dayTxt).join(' · ')}</div>` : '연차 X')
+        : typeLabel(e);
       tr.className = (isChild ? 'child ' : '') + (warn.length ? 'bk-warn' : '');
       tr.innerHTML = `
         <td>${e.date}${e.endDate?`<div class="rng">~ ${e.endDate.slice(5)}</div>`:''}</td>
-        <td>${WEEKDAYS[d.getDay()]}</td>
-        <td>${typeLabel(e)}</td>
+        <td>${wdTxt}</td>
+        <td>${leaveTxt}</td>
         <td>${bkEsc(e.memo||'')}</td>
         <td class="bkc">${isChild ? '<span class="rng">위 일정의 연차</span>' : `${bkBadges(e)}<button type="button" class="bk-toggle" aria-expanded="${openBk.has(e.id)}">예약 ${openBk.has(e.id)?'▴':'▾'}</button>${e.endDate?`<button type="button" class="bk-toggle lv-toggle" aria-expanded="${openLv.has(e.id)}">연차 ${openLv.has(e.id)?'▴':'▾'}</button>`:''}`}</td>
-        <td class="num">${e.minutes?fmtDays(e.minutes):'—'}</td>
+        <td class="num">${gMin?fmtDays(gMin):'—'}</td>
         <td class="del" title="삭제">✕</td>
       `;
       const tg = tr.querySelector('.bk-toggle');
@@ -1213,8 +1225,12 @@
       });
       // 메모·연차 사용 칸은 눌러서 바로 수정
       const tdLeave = tr.children[2], tdMemo = tr.children[3];
-      tdLeave.classList.add('editable'); tdLeave.title = '눌러서 연차 사용 수정';
-      tdLeave.addEventListener('click', ()=>editLeave(tdLeave, e.id));
+      tdLeave.classList.add('editable'); tdLeave.title = isRange ? '눌러서 날짜별 연차 수정' : '눌러서 연차 사용 수정';
+      tdLeave.addEventListener('click', ()=>{
+        if(!isRange){ editLeave(tdLeave, e.id); return; }
+        openLv.has(e.id) ? openLv.delete(e.id) : openLv.add(e.id);      // 여러 날 일정은 날짜별 연차 편집 칸을 열어요
+        renderLedger();
+      });
       tdMemo.classList.add('editable'); tdMemo.title = '눌러서 메모 수정';
       tdMemo.addEventListener('click', ()=>editMemo(tdMemo, e.id));
       tr.querySelector('.del').addEventListener('click', async (ev)=>{
