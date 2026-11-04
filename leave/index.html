@@ -226,6 +226,7 @@
   .lv-box .lv-save{margin-top:8px;}
   table.ledger tr.child td:nth-child(4)::before{content:'↳ ';}
   .rng{color:var(--ink-soft);font-size:11px;}
+  small.hm{display:block;font-size:11px;font-weight:400;color:var(--ink-soft);white-space:nowrap;}
   .bk-bar{margin-bottom:8px;}
   .bk-allnone{font-family:var(--sans);font-size:12px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);border-radius:999px;padding:3px 12px;cursor:pointer;}
   .bk-hint{flex-basis:100%;font-size:11.5px;color:var(--stamp-red);margin-top:6px;}
@@ -771,9 +772,17 @@
   }
   function fmtDays(mins){
     const d = mins/480;
-    const r = Math.round(d*100)/100;
+    const r = Math.round(d*10000)/10000;            // 소수점 넷째 자리까지 (셋째 자리에서 반올림하지 않아요)
     return (r % 1 === 0) ? r.toFixed(0) : r.toString();
   }
+  // 소수점 일수를 '1일 1시간 35분'처럼 환산 (하루 8시간 기준). 딱 떨어지는 일수면 빈 문자열.
+  function fmtDaysHM(mins){
+    const neg = mins < 0, a = Math.abs(Math.round(mins));
+    if(a % 480 === 0) return '';
+    const d = Math.floor(a/480), r = a % 480, h = Math.floor(r/60), m = r % 60;
+    return (neg ? '-' : '') + [d?`${d}일`:'', h?`${h}시간`:'', m?`${m}분`:''].filter(Boolean).join(' ');
+  }
+  const hmSmall = mins=>{ const t = fmtDaysHM(mins); return t ? `<small class="hm">(${t})</small>` : ''; };
 
   function activeScenario(){ return state.scenarios.find(s=>s.id===state.activeScenario); }
 
@@ -1224,7 +1233,7 @@
         <td>${leaveTxt}</td>
         <td>${bkEsc(e.memo||'')}</td>
         <td class="bkc">${isChild ? '<span class="rng">위 일정의 연차</span>' : `${bkBadges(e)}<button type="button" class="bk-toggle" aria-expanded="${openBk.has(e.id)}">예약 ${openBk.has(e.id)?'▴':'▾'}</button>${e.endDate?`<button type="button" class="bk-toggle lv-toggle" aria-expanded="${openLv.has(e.id)}">연차 ${openLv.has(e.id)?'▴':'▾'}</button>`:''}`}</td>
-        <td class="num">${gMin?fmtDays(gMin):'—'}</td>
+        <td class="num">${gMin?`${fmtDays(gMin)}${hmSmall(gMin)}`:'—'}</td>
         <td class="del" title="삭제">✕</td>
       `;
       const tg = tr.querySelector('.bk-toggle');
@@ -1285,7 +1294,7 @@
     const totalMin = entries.reduce((s,e)=>s+e.minutes,0);
     const trSub = document.createElement('tr');
     trSub.className = 'subtotal';
-    trSub.innerHTML = `<td colspan="5">${selectedYear}년 소계</td><td class="num">${fmtDays(totalMin)}</td><td></td>`;
+    trSub.innerHTML = `<td colspan="5">${selectedYear}년 소계</td><td class="num">${fmtDays(totalMin)}${hmSmall(totalMin)}</td><td></td>`;
     tbody.appendChild(trSub);
   }
 
@@ -1468,7 +1477,7 @@
       row.innerHTML = `
         <div style="font-family:var(--serif);font-weight:${s.id===state.activeScenario?'700':'400'};">${s.name}</div>
         <div class="bar-wrap"><div class="bar ${remaining<0?'over':''}" style="width:${pct}%;"></div></div>
-        <div class="rem">${fmtDays(remaining*480)}일</div>
+        <div class="rem">${fmtDays(remaining*480)}일${hmSmall(remaining*480)}</div>
       `;
       box.appendChild(row);
     });
