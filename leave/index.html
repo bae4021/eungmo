@@ -208,6 +208,14 @@
   .fdays-h{font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:8px;}
   .fdays-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px 12px;}
   .fday{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;}
+  .fday{flex-wrap:wrap;}
+  .fday .fd-t{flex-basis:100%;display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:12px;color:var(--ink-soft);}
+  .fday .fd-t[hidden]{display:none;}
+  .fday .fd-t select{font-family:var(--sans);font-size:12.5px;padding:3px 4px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);}
+  .lv-inline{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+  .lv-t{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ink-soft);}
+  .lv-t[hidden]{display:none;}
+  .lv-t select{font-family:var(--sans);font-size:12.5px;padding:3px 4px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);}
   .fday.off .fd-l{color:var(--ink-soft);}
   .fday select{font-family:var(--sans);font-size:12.5px;padding:3px 4px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--white);color:var(--ink);}
   .fdays-sum{margin-top:8px;font-size:12.5px;}
@@ -355,10 +363,7 @@
           <label>사용 시간</label>
           <div class="hm-row">
             <input type="number" id="fHour" min="0" max="8" value="0" style="width:48px;"> 시간
-            <select id="fMin">
-              <option value="0">00</option><option value="15">15</option>
-              <option value="30">30</option><option value="45">45</option>
-            </select> 분
+            <select id="fMin"><option value="0">00</option><option value="5">05</option><option value="10">10</option><option value="15">15</option><option value="20">20</option><option value="25">25</option><option value="30">30</option><option value="35">35</option><option value="40">40</option><option value="45">45</option><option value="50">50</option><option value="55">55</option></select> 분
           </div>
         </div>
         <div class="field memo">
@@ -627,7 +632,7 @@
   // 입력 중인 칸이 있으면 다른 기기에서 온 변경으로 화면을 다시 그리지 않아요
   function isEditing(){
     const a = document.activeElement;
-    return !!(a && (a.classList.contains('tab-name-input') || a.classList.contains('cell-in') || (a.closest && a.closest('.rule-grid, #overrideBody, .bk-box, .lv-box'))));
+    return !!(a && (a.classList.contains('tab-name-input') || a.classList.contains('cell-in') || (a.closest && a.closest('.rule-grid, #overrideBody, .bk-box, .lv-box, .lv-inline'))));
   }
 
   async function login(){
@@ -1126,28 +1131,37 @@
     inp.addEventListener('keydown', ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); inp.blur(); } else if(ev.key==='Escape'){ finish(false); } });
     inp.addEventListener('blur', ()=>finish(true));
   }
-  // 연차 사용 수정 (X / 종일 / 반차). 연차 항목(↳)을 X로 바꾸면 그 항목은 삭제돼요.
+  // 연차 사용 수정 (X / 종일 / 반차 / 시간 직접 입력(5분 단위)). 연차 항목(↳)을 X로 바꾸면 그 항목은 삭제돼요.
   function editLeave(td, id){
-    if(td.querySelector('select')) return;
+    if(td.querySelector('.lv-inline')) return;
     const sc = activeScenario(), e = sc.entries.find(x=>x.id===id); if(!e) return;
-    const cur = leaveCode(e), std = e.minutes===0 || e.minutes===480 || e.minutes===240;
-    const opt = (v,l)=>`<option value="${v}"${cur===v?' selected':''}>${l}</option>`;
-    td.innerHTML = `<select class="cell-in">${std?'':`<option value="keep" selected>${typeLabel(e)}</option>`}${opt('none','X (안 씀)')}${opt('480','종일')}${opt('240','오전 반차')}${opt('240pm','오후 반차')}</select>`;
-    const sel = td.firstChild; sel.focus();
+    const cur = leaveCode(e), isCustom = /^t\d+$/.test(cur), selv = isCustom ? 'custom' : cur;
+    const opt = (v,l)=>`<option value="${v}"${selv===v?' selected':''}>${l}</option>`;
+    td.innerHTML = `<span class="lv-inline"><select class="cell-in lv-sel">${opt('none','X (안 씀)')}${opt('480','종일')}${opt('240','오전 반차')}${opt('240pm','오후 반차')}${opt('custom','시간 입력')}</select><span class="lv-t"${isCustom?'':' hidden'}>${hmSelectsHtml(isCustom?e.minutes:60,'lv')} <button type="button" class="bk-auto lv-ok">확인</button></span></span>`;
+    const wrap = td.firstChild, sel = wrap.querySelector('.lv-sel'), t = wrap.querySelector('.lv-t');
+    sel.focus();
     let done = false;
-    const finish = async (save)=>{
+    const apply = async (code)=>{
       if(done) return; done = true;
-      if(save && sel.value!=='keep' && sel.value!==cur){
-        const lv = codeToLeave(sel.value);
+      if(code!==cur){
+        const lv = codeToLeave(code);
         if(e.parent && lv.minutes===0) sc.entries = sc.entries.filter(x=>x.id!==e.id);
         else { e.minutes = lv.minutes; e.half = lv.half; }
         await storeSet('scenarios', state.scenarios);
       }
       render();
     };
-    sel.addEventListener('change', ()=>finish(true));
-    sel.addEventListener('blur', ()=>finish(false));
-    sel.addEventListener('keydown', ev=>{ if(ev.key==='Escape') finish(false); });
+    const customCode = ()=>{
+      const mins = Math.min(480, (Number(wrap.querySelector('.lv-h').value)||0)*60 + (Number(wrap.querySelector('.lv-m').value)||0));
+      return mins<=0 ? 'none' : (mins>=480 ? '480' : 't'+mins);
+    };
+    sel.addEventListener('change', ()=>{
+      if(sel.value==='custom'){ t.hidden = false; if(!Number(wrap.querySelector('.lv-h').value) && !Number(wrap.querySelector('.lv-m').value)) wrap.querySelector('.lv-h').value = '1'; wrap.querySelector('.lv-h').focus(); }
+      else apply(sel.value);
+    });
+    wrap.querySelector('.lv-ok').addEventListener('click', ()=>apply(customCode()));
+    wrap.addEventListener('focusout', ()=>{ setTimeout(()=>{ if(!done && !wrap.contains(document.activeElement)){ done = true; render(); } }, 0); });
+    wrap.addEventListener('keydown', ev=>{ if(ev.key==='Escape'){ done = true; render(); } });
   }
   // 여러 날 일정의 날짜별 연차 편집 (예: 금요일은 연차 X, 월요일만 종일)
   function mountLeaveEditor(box, mainId){
@@ -1157,7 +1171,7 @@
     bkDaysBetween(main.date, main.endDate).forEach(d=>{ if(!vals[d]) vals[d] = 'none'; });   // 기록 없는 날은 연차 안 쓴 날
     box.innerHTML = `<div class="fdays-h">날짜별 연차 사용 — 바꾸고 저장을 눌러 주세요</div>${dayListHtml(main.date, main.endDate, vals)}<div class="fdays-sum">${''}</div><button type="button" class="btn lv-save">저장</button>`;
     const sum = box.querySelector('.fdays-sum'); sum.innerHTML = dayListSum(box);
-    box.addEventListener('change', ()=>{ sum.innerHTML = dayListSum(box); });
+    bindDayList(box, ()=>{ sum.innerHTML = dayListSum(box); });
     box.querySelector('.lv-save').addEventListener('click', async ()=>{
       const map = readDayList(box), days = bkDaysBetween(main.date, main.endDate);
       const first = codeToLeave(map[main.date] || 'none'); main.minutes = first.minutes; main.half = first.half;
@@ -1198,7 +1212,7 @@
       const isRange = !!e.endDate && !isChild;
       const group = isRange ? [e].concat(kidsOf[e.id] || []) : [e];
       const gMin = group.reduce((t,x)=>t + x.minutes, 0);
-      const dayTxt = x=>{ const dt = new Date(x.date+'T00:00:00'); return `${dt.getMonth()+1}/${dt.getDate()}(${WEEKDAYS[dt.getDay()]})${x.minutes===240?' 반차':(x.minutes<480?` ${x.minutes/60}H`:'')}`; };
+      const dayTxt = x=>{ const dt = new Date(x.date+'T00:00:00'); return `${dt.getMonth()+1}/${dt.getDate()}(${WEEKDAYS[dt.getDay()]})${x.minutes===240?' 반차':(x.minutes<480?` ${fmtHM(x.minutes)}`:'')}`; };
       const wdTxt = isRange ? `${WEEKDAYS[d.getDay()]}~${WEEKDAYS[new Date(e.endDate+'T00:00:00').getDay()]}` : WEEKDAYS[d.getDay()];
       const leaveTxt = isRange
         ? (gMin ? `연차 ${fmtDays(gMin)}일<div class="rng">${group.filter(x=>x.minutes>0).sort((a,b)=>a.date.localeCompare(b.date)).map(dayTxt).join(' · ')}</div>` : '연차 X')
@@ -1543,8 +1557,19 @@
   document.getElementById('ySelect').addEventListener('change', (e)=>{ selectedYear = Number(e.target.value); render(); });
 
   // ----- 여러 날 일정: 날짜별 연차 선택 목록 (등록 폼과 일정 내역의 '연차 ▾'가 같이 써요) -----
-  const leaveCode = e=> !e.minutes ? 'none' : (e.minutes>=480 ? '480' : (e.half==='pm' ? '240pm' : '240'));
-  const codeToLeave = v=> v==='480' ? {minutes:480, half:null} : v==='240' ? {minutes:240, half:'am'} : v==='240pm' ? {minutes:240, half:'pm'} : {minutes:0, half:null};
+  // 연차 사용 코드: none(X) · 480(종일) · 240(오전 반차) · 240pm(오후 반차) · t<분>(시간 직접 입력, 5분 단위)
+  const leaveCode = e=> !e.minutes ? 'none' : (e.minutes>=480 ? '480' : (e.minutes===240 && e.half==='pm' ? '240pm' : (e.minutes===240 && e.half==='am' ? '240' : 't'+e.minutes)));
+  const codeToLeave = v=> v==='480' ? {minutes:480, half:null} : v==='240' ? {minutes:240, half:'am'} : v==='240pm' ? {minutes:240, half:'pm'} : /^t\d+$/.test(v||'') ? {minutes:Math.min(480, Number(v.slice(1))), half:null} : {minutes:0, half:null};
+  const codeMinutes = v=> codeToLeave(v).minutes;
+  const fmtHM = m=>{ const h = Math.floor(m/60), mm = m%60; return `${h?h+'시간':''}${h&&mm?' ':''}${mm?mm+'분':''}` || '0분'; };
+  // 시간(0~8) + 분(5분 단위) 선택칸. 5분 단위가 아닌 예전 값은 그대로 보여줘요.
+  function hmSelectsHtml(minutes, cls){
+    const h = Math.floor(minutes/60), m = minutes%60;
+    const hs = Array.from({length:9}, (_,i)=>`<option value="${i}"${i===h?' selected':''}>${i}</option>`).join('');
+    const mins = Array.from({length:12}, (_,i)=>i*5); if(!mins.includes(m)){ mins.push(m); mins.sort((a,b)=>a-b); }
+    const ms = mins.map(v=>`<option value="${v}"${v===m?' selected':''}>${pad2(v)}</option>`).join('');
+    return `<select class="${cls}-h" aria-label="시간">${hs}</select>시간 <select class="${cls}-m" aria-label="분 (5분 단위)">${ms}</select>분`;
+  }
   function dayListHtml(date, end, vals){
     const days = bkDaysBetween(date, end).slice(0, 62);
     const hol = new Map(); Object.values(state.holidays||{}).forEach(list=>(list||[]).forEach(h=>hol.set(h.date, h.name)));
@@ -1552,16 +1577,34 @@
     return `<div class="fdays-grid">` + days.map(d=>{
       const [y,m,dd] = d.split('-').map(Number), wd = new Date(y,m-1,dd).getDay(), off = wd===0 || wd===6 || hol.has(d);
       const cur = (vals && vals[d]) || (off ? 'none' : '480');
+      const isCustom = /^t\d+$/.test(cur), sel = isCustom ? 'custom' : cur;
       const note = hol.has(d) ? ` <small>${bkEsc(hol.get(d))}</small>` : '';
-      return `<div class="fday${off?' off':''}"><span class="fd-l">${m}/${dd} (${WEEKDAYS[wd]})${note}</span><select data-d="${d}">${opt('none','X',cur)}${opt('480','종일',cur)}${opt('240','오전 반차',cur)}${opt('240pm','오후 반차',cur)}</select></div>`;
+      return `<div class="fday${off?' off':''}"><span class="fd-l">${m}/${dd} (${WEEKDAYS[wd]})${note}</span><select data-d="${d}">${opt('none','X',sel)}${opt('480','종일',sel)}${opt('240','오전 반차',sel)}${opt('240pm','오후 반차',sel)}${opt('custom','시간 입력',sel)}</select><span class="fd-t"${isCustom?'':' hidden'}>${hmSelectsHtml(isCustom?Number(cur.slice(1)):60,'fd')}</span></div>`;
     }).join('') + `</div>`;
   }
-  function readDayList(box){ const m = {}; box.querySelectorAll('select[data-d]').forEach(sel=>{ m[sel.dataset.d] = sel.value; }); return m; }
+  function rowCode(row){
+    const sel = row.querySelector('select[data-d]');
+    if(sel.value!=='custom') return sel.value;
+    const mins = Math.min(480, (Number(row.querySelector('.fd-h').value)||0)*60 + (Number(row.querySelector('.fd-m').value)||0));
+    return mins<=0 ? 'none' : (mins>=480 ? '480' : 't'+mins);
+  }
+  function readDayList(box){ const m = {}; box.querySelectorAll('.fday').forEach(row=>{ m[row.querySelector('select[data-d]').dataset.d] = rowCode(row); }); return m; }
   function dayListSum(box){
-    const sels = [...box.querySelectorAll('select[data-d]')];
-    const min = sels.reduce((t,sel)=>t + (sel.value==='480'?480:(sel.value==='none'?0:240)), 0);
-    const n = sels.filter(sel=>sel.value!=='none').length;
-    return `연차 사용: <b>${fmtDays(min)}일</b> (${n}일)`;
+    const codes = Object.values(readDayList(box));
+    const min = codes.reduce((t,c)=>t + codeMinutes(c), 0), n = codes.filter(c=>c!=='none').length;
+    return `연차 사용: <b>${fmtDays(min)}일</b> (${n}일${min?` · ${fmtHM(min)}`:''})`;
+  }
+  // 날짜별 목록의 '시간 입력' 선택칸을 보이거나 숨기고, 바뀔 때마다 합계를 갱신해요
+  function bindDayList(box, onChange){
+    box.addEventListener('change', ev=>{
+      const sel = ev.target.closest('select[data-d]');
+      if(sel){
+        const row = sel.closest('.fday'), t = row.querySelector('.fd-t');
+        t.hidden = sel.value!=='custom';
+        if(sel.value==='custom' && !Number(row.querySelector('.fd-h').value) && !Number(row.querySelector('.fd-m').value)) row.querySelector('.fd-h').value = '1';
+      }
+      onChange();
+    });
   }
 
   // 종료일을 넣으면(여러 날 일정) 날짜마다 연차 사용 여부를 고르는 목록이 나와요. 주말·공휴일은 기본이 'X', 평일은 '종일'이에요.
@@ -1584,7 +1627,7 @@
   }
   document.getElementById('fDate').addEventListener('change', renderFDays);
   document.getElementById('fEnd').addEventListener('change', renderFDays);
-  document.getElementById('fDays').addEventListener('change', updateFDaysSum);
+  bindDayList(document.getElementById('fDays'), updateFDaysSum);
 
   document.getElementById('fType').addEventListener('change', (e)=>{
     document.getElementById('fCustomWrap').style.display = e.target.value==='custom' ? 'flex' : 'none';
