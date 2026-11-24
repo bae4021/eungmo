@@ -294,7 +294,7 @@ a.entry-title::after{content:" ↗";font-size:11px;color:var(--ink-soft);}
     <div class="cover-sub">출석체크, 이벤트 응모, 해지·인출 같은 할 일을 한 장부에서 관리해요</div>
   </div>
   <div class="stats">
-    <div class="stat"><div class="stat-num red" id="statToday">0</div><div class="stat-label">오늘 처리할 항목</div></div>
+    <div class="stat"><div class="stat-num red" id="statToday">0</div><div class="stat-label">지금 확인할 항목</div></div>
     <div class="stat"><div class="stat-num teal" id="statSoon">0</div><div class="stat-label">3일 내 마감/처리</div></div>
     <div class="stat"><div class="stat-num" id="statTotal">0</div><div class="stat-label">전체 관리 중</div></div>
     <button type="button" class="stat stat-btn" id="profitBtn" aria-expanded="false" aria-controls="profitPanel">
@@ -693,9 +693,8 @@ function needsToday(e){
   if(e.type==='monthly'){
     return dailyPhase(e)==='active' && !checkedThisMonth(e);
   }
-  // 해지: 해지 가능일(지급일 이후)이 되면 '지금 확인'
-  const d = e.deadline ? daysBetween(e.deadline) : 999;
-  return d<=0;
+  // 처리 필요: 마감일까지 체크해야 하는 항목이라, 체크(완료)하기 전까지는 항상 '지금 확인'에 떠요
+  return true;
 }
 function isSoonBucket(e){
   if(isEnded(e) || isRecurring(e)) return false;
@@ -722,7 +721,9 @@ function computeStamp(e){
   }
   const d = e.deadline ? daysBetween(e.deadline) : null;
   if(d===null) return {cls:'gray', text:'-'};
-  if(d<=0) return {cls:'red', text:`${stampWord(e)}\n가능`};
+  if(d<0) return {cls:'red', text:`${-d}일\n지남`};
+  if(d===0) return {cls:'red', text:'오늘\n마감'};
+  if(d<=3) return {cls:'red', text:`D-${d}`};
   return {cls:'teal', text:`D-${d}`};
 }
 function sortVal(e){
@@ -789,7 +790,7 @@ function renderFilters(){
 /* ---------- 확정 지급 수익 (월말 기준) ---------- */
 function fmtWon(n){ return `${Math.round(n).toLocaleString('ko-KR')}원`; }
 function amountOf(e){ return (e.payType==='fixed' && Number(e.amount)>0) ? Number(e.amount) : 0; }
-// 매월 응모: 체크한 달마다 / 매일 출석·해지: 종료일(해지 가능일)이 속한 달에 한 번
+// 매월 응모: 체크한 달마다 / 매일 출석·처리 필요: 종료일(마감일)이 속한 달에 한 번
 function profitByMonth(){
   const map={}; let excluded=0;
   const add=(k,kind,amt)=>{ const r=map[k]||(map[k]={key:k,done:0,pending:0}); r[kind]+=amt; };
@@ -829,7 +830,7 @@ function renderProfit(){
     </table></div>`
     : `<p class="profit-note">확정 지급 항목이 아직 없어요. 항목을 등록하거나 수정할 때 지급 방식을 "확정 지급"으로 고르고 상품 가격을 넣어주세요.</p>`;
   panel.innerHTML = `<div class="profit-head"><b>월별 확정 수익</b><span>월말 기준 · 확정 지급 항목만 합산</span></div>${table}
-    <p class="profit-note">매월 응모는 체크한 달마다, 매일 출석·처리 필요 항목은 종료일(처리 가능일)이 속한 달에 한 번 합산해요. 이번 달에 아직 체크 전인 매월 응모는 "예정"으로 들어가요. 추첨 지급은 합산하지 않아요.${excluded?` 종료일이 없는 항목 ${excluded}개는 빠져 있어요.`:''}</p>`;
+    <p class="profit-note">매월 응모는 체크한 달마다, 매일 출석·처리 필요 항목은 종료일(마감일)이 속한 달에 한 번 합산해요. 이번 달에 아직 체크 전인 매월 응모는 "예정"으로 들어가요. 추첨 지급은 합산하지 않아요.${excluded?` 종료일이 없는 항목 ${excluded}개는 빠져 있어요.`:''}</p>`;
 }
 function payBadge(e){
   if(amountOf(e)) return `<span class="pay fixed">확정 ${fmtWon(amountOf(e))}</span>`;
@@ -942,12 +943,13 @@ function rowHtml(e){
       : ph==='ended' ? `${fmtDate(e.deadline)} 종료`
       : (checkedThisMonth(e) ? '매월 말일까지' : `${fmtDate(monthEndStr())}까지 · D-${daysToMonthEnd()}`) + (e.deadline ? ` · ~${fmtDate(e.deadline)}` : '');
   }else if(e.deadline){
-    dLabel = `${fmtDate(e.deadline)}부터 ${escapeHtml(actionOf(e))} 가능`;
+    const dd = daysBetween(e.deadline);
+    dLabel = e.done ? `${fmtDate(e.deadline)} 마감` : dd<0 ? `${fmtDate(e.deadline)} 마감 · ${-dd}일 지남` : dd===0 ? `${fmtDate(e.deadline)} 마감 · 오늘까지` : `${fmtDate(e.deadline)}까지 · D-${dd}`;
   }
   let urgentDate = '';
   if(!e.done){
     if(e.type==='monthly') urgentDate = (dailyPhase(e)==='active' && !checkedThisMonth(e) && daysToMonthEnd()<=3) ? 'urgent' : '';
-    else if(e.type!=='daily') urgentDate = (e.deadline && daysBetween(e.deadline)<=0) ? 'urgent' : '';
+    else if(e.type!=='daily') urgentDate = (e.deadline && daysBetween(e.deadline)<=3) ? 'urgent' : '';
   }
 
   let actions='';
@@ -1127,18 +1129,18 @@ function updateFormForType(){
   const act = document.getElementById('fAction').value.trim() || '처리';
   document.getElementById('actionRow').hidden = t!=='cancel';
   document.querySelectorAll('.pick').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.pick===act)));
-  document.getElementById('deadlineLabel').textContent = t==='cancel' ? `${act} 가능일` : '종료일 (선택)';
+  document.getElementById('deadlineLabel').textContent = t==='cancel' ? '마감일' : '종료일 (선택)';
   const pay = document.getElementById('fPayType').value;
   document.getElementById('amountField').hidden = pay!=='fixed';
   const ah = document.getElementById('amountHint');
   ah.hidden = pay!=='fixed';
   ah.textContent = t==='monthly' ? '매달 받는 금액이에요. 매월 체크한 달마다 이번 달 수익에 합산돼요.'
-    : t==='cancel' ? `한 번 받는 금액이에요. ${act} 가능일이 속한 달 수익에 합산돼요.`
+    : t==='cancel' ? '한 번 받는 금액이에요. 마감일이 속한 달 수익에 합산돼요.'
     : '한 번 받는 금액이에요. 종료일이 속한 달 수익에 합산돼요. (종료일이 없으면 합산에서 빠져요)';
   const hint = document.getElementById('formHint');
   hint.hidden = !(recurring || t==='cancel');
   hint.textContent = t==='monthly' ? '매월 말일까지 한 번 체크하면 돼요. 종료일을 비워두면 계속 이어져요.'
-    : t==='cancel' ? `${act}할 수 있는 날짜를 골라주세요. 그 날이 되면 "지금 확인"에 올라와요.`
+    : t==='cancel' ? `마감일까지 해야 하는 일(${act})을 마치고 체크해 주세요. 체크하기 전까지는 \"지금 확인\"에 계속 떠 있고, 체크하면 맨 아래 \"완료 / 보관\"으로 내려가요.`
     : '종료일을 비워두면 끝날 때까지 상시로 체크해요.';
 }
 fType.addEventListener('change', updateFormForType);
